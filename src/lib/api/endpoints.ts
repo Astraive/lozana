@@ -1,0 +1,13 @@
+export const EVENTS = "/events";
+export const EVENTS_BATCH = "/events/batch";
+export const EVENTS_NDJSON = "/events/ndjson";
+export const QUERY = "/query";
+export const LQL_QUERY = "/lql/query";
+export const TAIL = "/tail";
+export const STATUS = "/status";
+export const VERSION = "/version";
+export const READY = "/ready";
+export const HEALTH = "/health";
+export const SINKS = "/sinks";
+export const SCHEMA = "/schema";
+export const VALIDATE = "/validate";
