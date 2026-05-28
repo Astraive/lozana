@@ -1,7 +1,5 @@
 import { cn } from "@/lib/cn"
 
-type Status = "healthy" | "warning" | "error" | "unknown" | "ok" | "critical" | "degraded"
-
 const statusConfig: Record<string, { label: string; className: string; dotClassName: string }> = {
   healthy: {
     label: "Healthy",

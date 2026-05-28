@@ -22,7 +22,7 @@ export function LoadingState({ text, className }: LoadingStateProps) {
   )
 }
 
-interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {}
+type SkeletonProps = React.HTMLAttributes<HTMLDivElement>
 
 function Skeleton({ className, ...props }: SkeletonProps) {
   return (

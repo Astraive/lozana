@@ -35,7 +35,7 @@ function interpolateColor(minColor: string, maxColor: string, ratio: number): st
 
 export function HeatmapChart({
   data,
-  colorScale = ["#081417", "#32E0C4"],
+  colorScale = ["#081417", "#6F00FF"],
   className,
   cellSize = 16,
 }: HeatmapChartProps) {

@@ -37,7 +37,7 @@ function LevelBadge({ level }: { level: string }) {
       label: "ERROR",
     },
     warn: {
-      color: "bg-[#F6C85F]/10 text-[#F6C85F] border-[#F6C85F]/20",
+      color: "bg-[#FFF1F1]/10 text-[#FFF1F1] border-[#FFF1F1]/20",
       icon: AlertTriangle,
       label: "WARN",
     },
@@ -125,7 +125,7 @@ export default function ErrorsPage() {
               </Badge>
             )}
             {warnCount > 0 && (
-              <Badge variant="outline" className="text-[10px] font-mono text-[#F6C85F] border-[#F6C85F]/30">
+              <Badge variant="outline" className="text-[10px] font-mono text-[#FFF1F1] border-[#FFF1F1]/30">
                 {warnCount} warn{warnCount !== 1 ? "s" : ""}
               </Badge>
             )}
@@ -149,12 +149,12 @@ export default function ErrorsPage() {
           </Card>
           <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-[#F6C85F]/10 flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 text-[#F6C85F]" />
+              <div className="h-9 w-9 rounded-md bg-[#FFF1F1]/10 flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4 text-[#FFF1F1]" />
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Warnings</p>
-                <p className="text-lg font-bold font-mono text-[#F6C85F]">{warnCount}</p>
+                <p className="text-lg font-bold font-mono text-[#FFF1F1]">{warnCount}</p>
               </div>
             </CardContent>
           </Card>

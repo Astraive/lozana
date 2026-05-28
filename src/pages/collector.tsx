@@ -55,10 +55,10 @@ function PipelineStat({
   sub?: string;
 }) {
   const colorMap: Record<string, string> = {
-    teal: "text-primary bg-primary/10",
-    cyan: "text-accent bg-accent/10",
-    coral: "text-destructive bg-destructive/10",
-    gold: "text-[#F6C85F] bg-[#F6C85F]/10",
+    primary: "text-primary bg-primary/10",
+    accent: "text-accent bg-accent/10",
+    destructive: "text-destructive bg-destructive/10",
+    muted: "text-[#FFF1F1] bg-[#FFF1F1]/10",
   };
 
   return (
@@ -156,28 +156,28 @@ export default function CollectorPage() {
             label="Events Ingested"
             value={health.data?.events_ingested?.toLocaleString() || "\u2014"}
             icon={ArrowDownToLine}
-            color="teal"
+            color="primary"
             sub="Total received by collector"
           />
           <PipelineStat
             label="Accepted"
             value={health.data?.events_accepted?.toLocaleString() || "\u2014"}
             icon={ShieldCheck}
-            color="cyan"
+            color="accent"
             sub="Passed validation"
           />
           <PipelineStat
             label="Rejected"
             value={health.data?.events_rejected?.toLocaleString() || "\u2014"}
             icon={ShieldX}
-            color="coral"
+            color="destructive"
             sub="Failed validation"
           />
           <PipelineStat
             label="DLQ Size"
             value={health.data?.dlq_size?.toLocaleString() || "\u2014"}
             icon={Zap}
-            color="gold"
+            color="muted"
             sub={
               (health.data?.dlq_size ?? 0) > 0
                 ? "Items awaiting retry"

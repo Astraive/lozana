@@ -35,10 +35,10 @@ interface TraceSpan {
 /* -- Brand Colors (level colors) ------------------------------------------- */
 
 const BRAND = {
-  teal: "#32E0C4",
-  cyan: "#00D9F5",
-  coral: "#FF5C7A",
-  gold: "#F6C85F",
+  primary: "#6F00FF",
+  accent: "#E9B3FB",
+  destructive: "#FF5C7A",
+  muted: "#FFF1F1",
   slate: "#64748b",
 } as const;
 
@@ -114,15 +114,15 @@ function levelColor(level: string): string {
   switch (level) {
     case "error":
     case "fatal":
-      return BRAND.coral;
+      return BRAND.destructive;
     case "warn":
-      return BRAND.gold;
+      return BRAND.muted;
     case "info":
-      return BRAND.cyan;
+      return BRAND.accent;
     case "debug":
       return BRAND.slate;
     default:
-      return BRAND.teal;
+      return BRAND.primary;
   }
 }
 

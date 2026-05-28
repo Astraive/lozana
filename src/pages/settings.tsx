@@ -62,7 +62,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setCollectorUrl(
-      localStorage.getItem("loxa-collector-url") || "http://localhost:9090",
+      localStorage.getItem("loxa-collector-url") || import.meta.env.VITE_LOXANA_API_URL || "http://localhost:9308",
     );
     setApiKey(localStorage.getItem("loxa-api-key") || "");
   }, []);
@@ -103,7 +103,7 @@ export default function SettingsPage() {
             <Input
               value={collectorUrl}
               onChange={(e) => setCollectorUrl(e.target.value)}
-              placeholder="http://localhost:9090"
+              placeholder={import.meta.env.VITE_LOXANA_API_URL || "http://localhost:9308"}
               className="font-mono text-sm focus-visible:ring-primary/30"
             />
             <p className="text-[11px] text-muted-foreground/60">
@@ -160,8 +160,8 @@ export default function SettingsPage() {
       <Card className="bg-card border-border">
         <CardHeader className="pb-4">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-[#F6C85F]/10 flex items-center justify-center">
-              <Palette className="h-3.5 w-3.5 text-[#F6C85F]" />
+            <div className="h-7 w-7 rounded-md bg-[#FFF1F1]/10 flex items-center justify-center">
+              <Palette className="h-3.5 w-3.5 text-[#FFF1F1]" />
             </div>
             Appearance
           </CardTitle>

@@ -1,0 +1,6 @@
+name: loxana
+version: 0.2.5
+description: Dashboard and analytics UI for Loxa
+license: MIT
+repository: https://github.com/Astraive/loxa
+private: true

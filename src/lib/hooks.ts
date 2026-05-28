@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryEvents, getTraceEvents, getRecentEvents, getEventsOverTime, getTopServices, getTopErrors, getErrorEvents, getEventById } from "@/lib/api/events";
 import { getCollectorHealth, getCollectorVersion } from "@/lib/api/collector";
 import type { QueryResult, CollectorHealth } from "@/types/event";
@@ -103,10 +103,8 @@ export function useCollectorVersion() {
 // ── LQL Query ──────────────────────────────────────────────────────────────
 
 export function useLqlQuery() {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ sql, lql }: { sql: string; lql?: string }) => {
+    mutationFn: async ({ sql }: { sql: string }) => {
       return queryEvents(sql);
     },
   });

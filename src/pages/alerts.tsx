@@ -9,19 +9,9 @@ import {
   ArrowRight,
   Server,
   Activity,
-  AlertTriangle,
   Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-/* -- Brand Colors ---------------------------------------------------------- */
-
-const BRAND = {
-  teal: "#32E0C4",
-  cyan: "#00D9F5",
-  coral: "#FF5C7A",
-  gold: "#F6C85F",
-} as const;
 
 /* -- Preset Alerts --------------------------------------------------------- */
 
@@ -78,14 +68,14 @@ export default function AlertsPage() {
       </div>
 
       {/* -- Coming Soon Banner -------------------------------------------- */}
-      <Card className="bg-card border-[#F6C85F]/20">
+      <Card className="bg-card border-[#FFF1F1]/20">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-lg bg-[#F6C85F]/10 flex items-center justify-center shrink-0">
-              <BellOff className="h-6 w-6 text-[#F6C85F]" />
+            <div className="h-12 w-12 rounded-lg bg-[#FFF1F1]/10 flex items-center justify-center shrink-0">
+              <BellOff className="h-6 w-6 text-[#FFF1F1]" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-[#F6C85F] mb-1">
+              <h3 className="text-sm font-medium text-[#FFF1F1] mb-1">
                 Alert engine not connected
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -98,7 +88,7 @@ export default function AlertsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs border-[#F6C85F]/30 text-[#F6C85F] hover:bg-[#F6C85F]/10"
+                  className="text-xs border-[#FFF1F1]/30 text-[#FFF1F1] hover:bg-[#FFF1F1]/10"
                   disabled
                 >
                   <Server className="h-3.5 w-3.5 mr-1.5" />
@@ -148,13 +138,13 @@ export default function AlertsPage() {
                           "h-9 w-9 rounded-md flex items-center justify-center",
                           isCritical
                             ? "bg-destructive/10"
-                            : "bg-[#F6C85F]/10",
+                            : "bg-[#FFF1F1]/10",
                         )}
                       >
                         <Icon
                           className={cn(
                             "h-4.5 w-4.5",
-                            isCritical ? "text-destructive" : "text-[#F6C85F]",
+                            isCritical ? "text-destructive" : "text-[#FFF1F1]",
                           )}
                         />
                       </div>
@@ -173,7 +163,7 @@ export default function AlertsPage() {
                         "text-[10px] shrink-0",
                         isCritical
                           ? "text-destructive border-destructive/30"
-                          : "text-[#F6C85F] border-[#F6C85F]/30",
+                          : "text-[#FFF1F1] border-[#FFF1F1]/30",
                       )}
                     >
                       {alert.severity}

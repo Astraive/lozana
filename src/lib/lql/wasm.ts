@@ -7,7 +7,7 @@ export function compileToDuckDB(input: string): string {
   const lines = input.trim().split("|").map((s) => s.trim());
   let sql = "";
   let selectCols = "*";
-  let whereClauses: string[] = [];
+  const whereClauses: string[] = [];
   let groupBy: string[] = [];
   let orderBy = "";
   let limit = "";

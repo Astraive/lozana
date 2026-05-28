@@ -1,6 +1,7 @@
 # Web QA Report: Loxana Dashboard
 
 Date: 2026-05-27
+Version: v0.2.3
 Target: E:\astraive\loxa\loxana
 Mode: Web QA (comprehensive code review + build verification)
 Browsers tested: N/A (code review mode -- no live browser available for this session)
@@ -366,3 +367,7 @@ MEDIUM ISSUES: 5 (dead code, Suspense boundary, settings/API sync, 404 route, co
 LOW ISSUES: 5 (duplicate cn, stale dist, stale nav config, unused variable, bundle size, duplicate types)
 RECOMMENDATION: ship-after-fixes
 ```
+
+## License
+
+See [LICENSE](LICENSE) file.

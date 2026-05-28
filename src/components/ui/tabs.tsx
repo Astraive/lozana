@@ -49,7 +49,7 @@ function Tabs({
   )
 }
 
-interface TabsListProps extends React.HTMLAttributes<HTMLDivElement> {}
+type TabsListProps = React.HTMLAttributes<HTMLDivElement>
 
 function TabsList({ className, ...props }: TabsListProps) {
   return (

@@ -11,8 +11,8 @@ import {
 /* -- Brand Colors (health bar fills) --------------------------------------- */
 
 const BRAND = {
-  teal: "#32E0C4",
-  coral: "#FF5C7A",
+  primary: "#6F00FF",
+  destructive: "#FF5C7A",
 } as const;
 
 /* -- Skeleton -------------------------------------------------------------- */
@@ -172,7 +172,7 @@ export default function ServicesPage() {
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${Math.min(100, Math.max(5, ((count - errCount) / Math.max(1, count)) * 100))}%`,
-                          backgroundColor: hasErrors ? BRAND.coral : BRAND.teal,
+                          backgroundColor: hasErrors ? BRAND.destructive : BRAND.primary,
                         }}
                       />
                     </div>

@@ -30,10 +30,10 @@ import {
 /* -- Brand Colors (recharts fill props) ------------------------------------ */
 
 const BRAND = {
-  teal: "#32E0C4",
-  cyan: "#00D9F5",
-  coral: "#FF5C7A",
-  gold: "#F6C85F",
+  primary: "#6F00FF",
+  accent: "#E9B3FB",
+  destructive: "#FF5C7A",
+  muted: "#FFF1F1",
 } as const;
 
 /* -- Skeletons ------------------------------------------------------------- */
@@ -90,10 +90,10 @@ function StatCard({
   sub?: string;
 }) {
   const colorText: Record<string, string> = {
-    teal: "text-primary",
-    cyan: "text-accent",
-    coral: "text-destructive",
-    gold: "text-[#F6C85F]",
+    primary: "text-primary",
+    accent: "text-accent",
+    destructive: "text-destructive",
+    muted: "text-[#FFF1F1]",
   };
 
   return (
@@ -118,12 +118,17 @@ function StatCard({
 
 /* -- Chart Tooltip --------------------------------------------------------- */
 
-function ChartTooltip({ active, payload, label }: any) {
+interface TooltipPayloadEntry {
+  color?: string;
+  value?: number;
+}
+
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayloadEntry[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-md border border-border bg-popover px-3 py-2 shadow-lg text-xs">
       <p className="font-medium text-foreground mb-1">{label}</p>
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry, i) => (
         <p key={i} className="text-muted-foreground">
           <span className="font-mono" style={{ color: entry.color }}>{entry.value}</span> events
         </p>
@@ -210,28 +215,28 @@ export default function OverviewPage() {
             label="Events Ingested"
             value={totalEvents.toLocaleString()}
             icon={BarChart3}
-            color="teal"
+            color="primary"
             sub={`${accepted.toLocaleString()} accepted`}
           />
           <StatCard
             label="Error Rate"
             value={errorRate != null ? `${errorRate}%` : "\u2014"}
             icon={AlertTriangle}
-            color="coral"
+            color="destructive"
             sub={`${rejected.toLocaleString()} rejected`}
           />
           <StatCard
             label="DLQ Size"
             value={dlqSize.toLocaleString()}
             icon={Zap}
-            color="gold"
+            color="muted"
             sub={dlqSize > 0 ? "Items awaiting retry" : "Queue empty"}
           />
           <StatCard
             label="Collector"
             value={health.data?.version || "\u2014"}
             icon={Server}
-            color="cyan"
+            color="accent"
             sub={status === "ok" ? "Healthy" : status}
           />
         </div>
@@ -274,14 +279,14 @@ export default function OverviewPage() {
                   axisLine={false}
                   tickLine={false}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: BRAND.teal, strokeWidth: 1, strokeDasharray: "4 4" }} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: BRAND.primary, strokeWidth: 1, strokeDasharray: "4 4" }} />
                 <Line
                   type="monotone"
                   dataKey="count"
-                  stroke={BRAND.teal}
+                  stroke={BRAND.primary}
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: BRAND.teal, stroke: "#050D10", strokeWidth: 2 }}
+                  activeDot={{ r: 4, fill: BRAND.primary, stroke: "#050D10", strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -327,7 +332,7 @@ export default function OverviewPage() {
                       tickLine={false}
                     />
                     <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
-                    <Bar dataKey="count" fill={BRAND.coral} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" fill={BRAND.destructive} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -377,7 +382,7 @@ export default function OverviewPage() {
                       tickLine={false}
                     />
                     <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
-                    <Bar dataKey="count" fill={BRAND.teal} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" fill={BRAND.primary} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
