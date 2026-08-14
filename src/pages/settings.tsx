@@ -59,17 +59,35 @@ export default function SettingsPage() {
   const [collectorUrl, setCollectorUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setCollectorUrl(
-      localStorage.getItem("loxa-collector-url") || import.meta.env.VITE_LOXANA_API_URL || "http://localhost:9308",
+      localStorage.getItem("loza-collector-url") || import.meta.env.VITE_LOZANA_API_URL || "http://localhost:9308",
     );
-    setApiKey(localStorage.getItem("loxa-api-key") || "");
+    const storedKey = localStorage.getItem("loza-api-key");
+    if (storedKey) {
+      sessionStorage.setItem("loza-api-key", storedKey);
+      localStorage.removeItem("loza-api-key");
+    }
+    setApiKey(sessionStorage.getItem("loza-api-key") || "");
   }, []);
 
   function handleSave() {
-    localStorage.setItem("loxa-collector-url", collectorUrl);
-    localStorage.setItem("loxa-api-key", apiKey);
+    const normalizedUrl = normalizeCollectorUrl(collectorUrl);
+    if (!normalizedUrl) {
+      setError("Collector URL must start with http:// or https://");
+      setSaved(false);
+      return;
+    }
+    setError("");
+    localStorage.setItem("loza-collector-url", normalizedUrl);
+    localStorage.removeItem("loza-api-key");
+    if (apiKey) {
+      sessionStorage.setItem("loza-api-key", apiKey);
+    } else {
+      sessionStorage.removeItem("loza-api-key");
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -80,7 +98,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Configure Loxana and your Loxa connection
+          Configure Lozana and your Loza connection
         </p>
       </div>
 
@@ -103,12 +121,13 @@ export default function SettingsPage() {
             <Input
               value={collectorUrl}
               onChange={(e) => setCollectorUrl(e.target.value)}
-              placeholder={import.meta.env.VITE_LOXANA_API_URL || "http://localhost:9308"}
+              placeholder={import.meta.env.VITE_LOZANA_API_URL || "http://localhost:9308"}
               className="font-mono text-sm focus-visible:ring-primary/30"
             />
             <p className="text-[11px] text-muted-foreground/60">
-              The base URL of your Loxa Collector HTTP endpoint
+              The base URL of your Loza Collector HTTP endpoint
             </p>
+            {error && <p className="text-[11px] text-destructive">{error}</p>}
           </div>
 
           <div className="space-y-2">
@@ -149,7 +168,7 @@ export default function SettingsPage() {
             </Button>
             {saved && (
               <span className="text-xs text-primary animate-in fade-in duration-200">
-                Settings saved to local storage
+                Settings saved
               </span>
             )}
           </div>
@@ -214,7 +233,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-1">
-            <span className="text-sm text-muted-foreground">Loxana Version</span>
+            <span className="text-sm text-muted-foreground">Lozana Version</span>
             <Badge
               variant="outline"
               className="text-[10px] font-mono text-primary border-primary/30"
@@ -241,11 +260,24 @@ export default function SettingsPage() {
           </div>
           <Separator />
           <p className="text-xs text-muted-foreground/60 pt-2">
-            Loxana is the observability dashboard for Loxa wide events.
-            Connect to a Loxa Collector to start exploring your system.
+            Lozana is the observability dashboard for Loza wide events.
+            Connect to a Loza Collector to start exploring your system.
           </p>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function normalizeCollectorUrl(value: string): string {
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return "";
+    }
+    url.hash = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return "";
+  }
 }

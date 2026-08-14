@@ -1,11 +1,11 @@
-# Frontend Review: Loxana v0.2.3 Dashboard
+# Frontend Review: Lozana v0.2.3 Dashboard
 
 Date: 2026-05-27
 Version: v0.2.3
 
 ## Summary
 
-Full code review of the Loxana Vite+React 19 observability dashboard. Reviewed all source files in `src/` covering pages, components, stores, hooks, API layer, feature modules, types, config, and styles. This is a comprehensive static review of the entire frontend codebase (~100 source files).
+Full code review of the Lozana Vite+React 19 observability dashboard. Reviewed all source files in `src/` covering pages, components, stores, hooks, API layer, feature modules, types, config, and styles. This is a comprehensive static review of the entire frontend codebase (~100 source files).
 
 ## Architecture Overview
 
@@ -66,7 +66,7 @@ The `sqlEscape` function exists in this file but is never called within `compile
 
 #### M3. Duplicate Type Definitions
 **Files:** `src/types/event.ts` and `src/types/telemetry.ts`
-**Impact:** Both files define identical `LoxaEvent`, `ProcessStep`, `Checkpoint`, `QueryResult`, `CollectorHealth`, `SinkHealth`, `TimeRange` interfaces.
+**Impact:** Both files define identical `LozaEvent`, `ProcessStep`, `Checkpoint`, `QueryResult`, `CollectorHealth`, `SinkHealth`, `TimeRange` interfaces.
 
 #### M4. WebSocket Hook Lacks Reconnection
 **File:** `src/hooks/useWebSocket.ts`
@@ -74,11 +74,11 @@ The `sqlEscape` function exists in this file but is never called within `compile
 
 #### M5. Monaco Editor Hardcoded to Dark Theme
 **File:** `src/features/query/components/QueryEditor.tsx` (line 136)
-**Impact:** `monaco.editor.setTheme("loxa-dark")` is called on mount and never updates. If the user switches to light theme, the editor remains dark.
+**Impact:** `monaco.editor.setTheme("loza-dark")` is called on mount and never updates. If the user switches to light theme, the editor remains dark.
 
 #### M6. Settings Page Does Not Persist to API Client
 **File:** `src/pages/settings.tsx`
-**Impact:** The Settings page saves `collectorUrl` to `localStorage` but the API client reads `VITE_LOXANA_API_URL` from the environment variable and never checks localStorage.
+**Impact:** The Settings page saves `collectorUrl` to `localStorage` but the API client reads `VITE_LOZANA_API_URL` from the environment variable and never checks localStorage.
 
 #### M7. Stale Route/Nav Config Files
 **Files:** `src/config/routes.ts` and `src/config/nav.ts`

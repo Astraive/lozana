@@ -79,7 +79,7 @@ export default function AlertsPage() {
                 Alert engine not connected
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Connect to Loxa Cortex to enable real-time alert evaluation,
+                Connect to Loza Cortex to enable real-time alert evaluation,
                 notification routing, and alert history. The alert engine
                 evaluates LQL queries on a schedule and triggers notifications
                 when thresholds are breached.

@@ -76,7 +76,7 @@ function DetailRow({
     navigator.clipboard.writeText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    }).catch(() => setCopied(false));
   };
 
   return (

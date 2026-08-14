@@ -1,0 +1,6 @@
+name: lozana
+version: 0.2.6
+description: Dashboard and analytics UI for Loza
+license: MIT
+repository: https://github.com/Astraive/loza
+private: true

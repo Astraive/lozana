@@ -15,7 +15,7 @@ interface ThemeContextValue {
   resolvedTheme: "dark" | "light"
 }
 
-const STORAGE_KEY = "loxana-theme"
+const STORAGE_KEY = "lozana-theme"
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: "dark",

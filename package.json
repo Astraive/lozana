@@ -1,6 +1,6 @@
 {
-  "name": "loxana",
-  "version": "0.2.5",
+  "name": "lozana",
+  "version": "0.2.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint src/",
-    "test": "vitest"
+    "test": "vitest --run --passWithNoTests"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -39,6 +39,8 @@
     "eslint-plugin-react-hooks": "^5",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vite": "^6.0.0"
+    "typescript-eslint": "^8",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.7"
   }
 }

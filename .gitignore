@@ -29,10 +29,10 @@ skills-lock.json
 *.local
 *.local.*
 
-.loxa/
-**/.loxa/
-.loxa-cli.yaml
-**/.loxa-cli.yaml
+.loza/
+**/.loza/
+.loza-cli.yaml
+**/.loza-cli.yaml
 
 # =============================================================================
 # OS files
@@ -57,9 +57,6 @@ yarn-error.log*
 tmp/
 temp/
 tmp_*/
-
-collector/*.log
-collector/*.err.log
 
 # =============================================================================
 # Build artifacts / binaries
@@ -90,29 +87,6 @@ coverage/
 *.sqlite3
 
 # =============================================================================
-# Go
-# =============================================================================
-.gocache/
-vendor/
-
-bench/results/
-*.bench
-*.cover
-coverage.out
-
-# =============================================================================
-# Python
-# =============================================================================
-__pycache__/
-*.py[cod]
-*.pyo
-*.egg-info/
-.eggs/
-.venv/
-venv/
-env/
-
-# =============================================================================
 # JavaScript / TypeScript
 # =============================================================================
 node_modules/
@@ -126,14 +100,10 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
-.next/
-.nuxt/
-.svelte-kit/
 vite.config.ts.timestamp-*
 vite.config.js.timestamp-*
 
 *.tsbuildinfo
-next-env.d.ts
 
 # =============================================================================
 # Vercel / hosting
@@ -144,49 +114,3 @@ next-env.d.ts
 # Certificates / secrets
 # =============================================================================
 *.pem
-
-# =============================================================================
-# Rust
-# =============================================================================
-target/
-
-# =============================================================================
-# Generated protobuf / generated code
-# =============================================================================
-gen/
-gen/go/
-*.pb.go
-
-# =============================================================================
-# Loxana app-specific ignores
-# =============================================================================
-loxana/node_modules/
-loxana/.pnp
-loxana/.pnp.*
-loxana/.yarn/*
-!loxana/.yarn/patches
-!loxana/.yarn/plugins
-!loxana/.yarn/releases
-!loxana/.yarn/versions
-
-loxana/coverage/
-loxana/.next/
-loxana/out/
-loxana/build/
-loxana/dist/
-
-loxana/.DS_Store
-loxana/*.pem
-
-loxana/npm-debug.log*
-loxana/yarn-debug.log*
-loxana/yarn-error.log*
-loxana/.pnpm-debug.log*
-
-loxana/.env
-loxana/.env.*
-!loxana/.env.example
-
-loxana/.vercel/
-loxana/*.tsbuildinfo
-loxana/next-env.d.ts

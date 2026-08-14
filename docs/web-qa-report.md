@@ -1,8 +1,8 @@
-# Web QA Report: Loxana Dashboard
+# Web QA Report: Lozana Dashboard
 
 Date: 2026-05-27
 Version: v0.2.3
-Target: E:\astraive\loxa\loxana
+Target: E:\astraive\loza\lozana
 Mode: Web QA (comprehensive code review + build verification)
 Browsers tested: N/A (code review mode -- no live browser available for this session)
 
@@ -213,13 +213,13 @@ Page/Flow: `/settings`
 Category: API/Config
 
 Steps to reproduce:
-1. Settings page reads collector URL from `localStorage.getItem("loxa-collector-url")`
-2. API client (`lib/api/client.ts`) reads from `import.meta.env.VITE_LOXANA_API_URL`
+1. Settings page reads collector URL from `localStorage.getItem("loza-collector-url")`
+2. API client (`lib/api/client.ts`) reads from `import.meta.env.VITE_LOZANA_API_URL`
 3. These two sources are not synchronized
 
 Expected: Settings page should configure the actual API URL used by the app
 Actual: Settings saves to localStorage but API client reads from env var; changing settings has no effect on API calls
-Evidence: `client.ts` line 3: `const API_URL = import.meta.env.VITE_LOXANA_API_URL || ""`
+Evidence: `client.ts` line 3: `const API_URL = import.meta.env.VITE_LOZANA_API_URL || ""`
 User impact: User thinks they changed the collector URL but API calls still go to the env var value
 
 ### ISSUE-009: useLqlQuery has unused queryClient variable
@@ -267,15 +267,15 @@ Actual: Main JS chunk is 884 KB (261 KB gzip)
 Evidence: Vite build output
 User impact: Slower initial load on slow connections; consider code-splitting Monaco editor and Recharts
 
-### ISSUE-012: Duplicate type definitions for LoxaEvent
+### ISSUE-012: Duplicate type definitions for LozaEvent
 
 Severity: Low
 Page/Flow: Type system
 Category: Code quality
 
 Steps to reproduce:
-1. `src/types/telemetry.ts` defines `LoxaEvent` (lines 1-46)
-2. `src/types/event.ts` defines an identical `LoxaEvent` (lines 1-46)
+1. `src/types/telemetry.ts` defines `LozaEvent` (lines 1-46)
+2. `src/types/event.ts` defines an identical `LozaEvent` (lines 1-46)
 3. Different files import from different locations
 
 Expected: Single type definition
@@ -334,7 +334,7 @@ No runtime console errors detected in code review. All components handle loading
 | GET /health | Not used | Dead endpoint config |
 | GET /ready | Not used | Dead endpoint config |
 
-All API calls go through `lib/api/client.ts` which adds Authorization header if `VITE_LOXA_API_KEY` is set.
+All API calls go through `lib/api/client.ts` which adds Authorization header if `VITE_LOZA_API_KEY` is set.
 
 ## Zustand Stores Analysis
 
@@ -347,7 +347,7 @@ All API calls go through `lib/api/client.ts` which adds Authorization header if 
 
 ## Final Assessment
 
-The Loxana dashboard is a well-structured React SPA with:
+The Lozana dashboard is a well-structured React SPA with:
 - Clean TypeScript (zero type errors)
 - Proper TanStack Query integration with loading/error states
 - Good responsive design with mobile-first approach
