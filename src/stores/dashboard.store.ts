@@ -1,12 +1,5 @@
 import { create } from "zustand";
-
-interface Panel {
-  id: string;
-  title: string;
-  type: string;
-  query: string;
-  position: { x: number; y: number; w: number; h: number };
-}
+import type { Panel } from "@/types/dashboard";
 
 interface DashboardState {
   panels: Panel[];

@@ -1,8 +1,8 @@
-# UI QA Report: Loxana Dashboard (v0.2.3)
+# UI QA Report: Lozana Dashboard (v0.2.3)
 
 Date: 2026-05-27 (updated)
 Version: v0.2.3
-Target: Loxana Vite SPA (full source code audit)
+Target: Lozana Vite SPA (full source code audit)
 Mode: UI QA -- static code review + build verification
 
 ## Summary
@@ -27,7 +27,7 @@ One warning: chunk exceeds 500 kB -- recommend code-splitting routes via `React.
 
 ## Design Sources Referenced
 
-- `DESIGN.md`: not found at repo root or loxana/
+- `DESIGN.md`: not found at repo root or lozana/
 - Theme/tokens: **used** -- `src/styles/globals.css` defines full dark + light token sets
 - Component library: **detected** -- 19 shadcn-style primitives in `src/components/ui/`
 - Font system: `--font-sans: "Geist"`, `--font-mono: "Geist Mono"` declared in CSS but **never loaded**
@@ -59,7 +59,7 @@ One warning: chunk exceeds 500 kB -- recommend code-splitting routes via `React.
 **Category:** Typography
 
 **Steps to reproduce:**
-1. Open Loxana in any browser
+1. Open Lozana in any browser
 2. Inspect the computed `font-family` on any body text element
 3. Observe that "Geist" is not available; the browser falls back to system-ui
 
@@ -82,7 +82,7 @@ One warning: chunk exceeds 500 kB -- recommend code-splitting routes via `React.
 3. Observe the Monaco code editor
 
 **Expected:** Editor background adapts to light theme.
-**Actual:** Editor uses hardcoded `loxa-dark` theme with `editor.background: #081417` and `editor.foreground: #EEEEEE`. The surrounding container also hardcodes `bg-[#081417]`. In light mode, this creates a jarring dark island on a light page.
+**Actual:** Editor uses hardcoded `loza-dark` theme with `editor.background: #081417` and `editor.foreground: #EEEEEE`. The surrounding container also hardcodes `bg-[#081417]`. In light mode, this creates a jarring dark island on a light page.
 
 ---
 
@@ -166,7 +166,7 @@ See the full issue list in the original report for medium and low severity issue
 
 ## Final Recommendation
 
-The Loxana dashboard is a well-crafted React SPA with strong design fundamentals:
+The Lozana dashboard is a well-crafted React SPA with strong design fundamentals:
 - Consistent dark theme with proper CSS custom properties
 - Excellent responsive layout that works across all breakpoints
 - Comprehensive loading, empty, and error states on every page

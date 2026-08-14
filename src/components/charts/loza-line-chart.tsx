@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/cn";
 
-interface LoxaLineChartProps {
+interface LozaLineChartProps {
   data: Record<string, unknown>[];
   xField: string;
   yField: string;
@@ -18,14 +18,14 @@ interface LoxaLineChartProps {
   className?: string;
 }
 
-export function LoxaLineChart({
+export function LozaLineChart({
   data,
   xField,
   yField,
   height = 300,
   color = "var(--primary)",
   className,
-}: LoxaLineChartProps) {
+}: LozaLineChartProps) {
   return (
     <div className={cn("w-full", className)}>
     <ResponsiveContainer width="100%" height={height}>

@@ -1,4 +1,4 @@
-export interface LoxaEvent {
+export interface LozaEvent {
   event_id: string;
   timestamp: string;
   received_at?: string;

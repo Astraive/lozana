@@ -1,4 +1,4 @@
-# Loxana — Dashboard and analytics UI for Loxa
+# Lozana — Dashboard and analytics UI for Loza
 # Multi-stage: build with bun, serve with nginx
 
 FROM oven/bun:alpine AS build
@@ -13,8 +13,8 @@ RUN bun run build
 FROM nginx:alpine
 
 # Run nginx as non-root
-RUN addgroup -g 10001 loxana && \
-    adduser -u 10001 -G loxana -s /bin/sh -D loxana
+RUN addgroup -g 10001 lozana && \
+    adduser -u 10001 -G lozana -s /bin/sh -D lozana
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
@@ -36,13 +36,13 @@ RUN printf 'server {\n\
 }\n' > /etc/nginx/conf.d/default.conf
 
 # Fix permissions for non-root
-RUN chown -R loxana:loxana /usr/share/nginx/html && \
-    chown -R loxana:loxana /var/cache/nginx && \
-    chown -R loxana:loxana /var/log/nginx && \
+RUN chown -R lozana:lozana /usr/share/nginx/html && \
+    chown -R lozana:lozana /var/cache/nginx && \
+    chown -R lozana:lozana /var/log/nginx && \
     touch /var/run/nginx.pid && \
-    chown loxana:loxana /var/run/nginx.pid
+    chown lozana:lozana /var/run/nginx.pid
 
-USER loxana
+USER lozana
 
 EXPOSE 8080
 

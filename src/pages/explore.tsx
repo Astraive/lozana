@@ -93,7 +93,7 @@ export default function ExplorePage() {
     navigator.clipboard.writeText(executedSql).then(() => {
       setCopiedSql(true);
       setTimeout(() => setCopiedSql(false), 2000);
-    });
+    }).catch(() => setCompileError("Clipboard permission denied"));
   }, [executedSql]);
 
   const rows = queryResult.data?.rows ?? [];

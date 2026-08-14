@@ -44,14 +44,14 @@ export function compileToDuckDB(input: string): string {
       case "sort":
       case "order": {
         const field = parts[1] || "ts";
-        const dir = (parts[2] || "desc").toUpperCase();
+        const dir = normalizeSortDir(parts[2] || "desc");
         orderBy = `${escapeIdent(field)} ${dir}`;
         break;
       }
 
       case "limit":
       case "take":
-        limit = parts[1] || "100";
+        limit = String(normalizeLimit(parts[1] || "100"));
         break;
 
       case "project":
@@ -70,7 +70,7 @@ export function compileToDuckDB(input: string): string {
     }
   }
 
-  sql = `SELECT ${selectCols} FROM "${table}"`;
+  sql = `SELECT ${selectCols} FROM ${escapeIdent(table)}`;
   if (whereClauses.length > 0) {
     sql += ` WHERE ${whereClauses.join(" AND ")}`;
   }
@@ -92,6 +92,7 @@ function escapeSQLString(value: string): string {
 }
 
 function compileWhereExpr(expr: string): string {
+  rejectUnsafeSQLFragment(expr);
   // Handle simple field = "value" and field op value patterns
   // And/Or are handled by splitting
   return expr
@@ -153,6 +154,27 @@ function compileWhereExpr(expr: string): string {
     });
 }
 
+function rejectUnsafeSQLFragment(value: string): void {
+  if (/[;]/.test(value) || /--|\/\*|\*\//.test(value)) {
+    throw new Error("Unsafe LQL expression");
+  }
+}
+
+function normalizeLimit(value: string): number {
+  if (!/^\d+$/.test(value)) {
+    throw new Error("Invalid LQL limit");
+  }
+  return Math.min(parseInt(value, 10), 10000);
+}
+
+function normalizeSortDir(value: string): "ASC" | "DESC" {
+  const dir = value.toUpperCase();
+  if (dir !== "ASC" && dir !== "DESC") {
+    throw new Error("Invalid sort direction");
+  }
+  return dir;
+}
+
 function compileAggregations(aggStr: string): string {
   return aggStr
     .split(",")
@@ -186,15 +208,26 @@ function compileSingleAgg(agg: string): string {
   if (agg.startsWith("p95(")) return `PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ${escapeIdent(agg.slice(4, -1))})`;
   if (agg.startsWith("p99(")) return `PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY ${escapeIdent(agg.slice(4, -1))})`;
   if (agg.startsWith("dcount(")) return `COUNT(DISTINCT ${escapeIdent(agg.slice(7, -1))})`;
-  return agg;
+  throw new Error("Invalid aggregation");
 }
 
 function escapeIdent(name: string): string {
+  rejectUnsafeSQLFragment(name);
   if (name === "*") return "*";
   if (name.includes(".") && !name.startsWith("json_")) {
-    return `json_extract_string(raw, '$.${name}')`;
+    return `json_extract_string(raw, '$.${escapeJSONPath(name)}')`;
   }
-  return `"${name}"`;
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error("Invalid identifier");
+  }
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+function escapeJSONPath(path: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(path)) {
+    throw new Error("Invalid JSON path");
+  }
+  return path;
 }
 
 function parseDurationMinutes(s: string): number {

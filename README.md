@@ -1,8 +1,11 @@
 <p align="center">
-  <img src="../assets/branding/loxa.svg" alt="Loxa" width="150" height="150">
-  <h1 align="center">Loxana</h1>
+  <img src="../assets/branding/loza.svg" alt="Loza" width="150" height="150">
+  <h1 align="center">Lozana</h1>
   <p align="center">
-    <strong>Dashboard and analytics UI for Loxa</strong>
+    <a href="https://github.com/astraive/loza/actions/workflows/lozana-ci.yml"><img src="https://github.com/astraive/loza/actions/workflows/lozana-ci.yml/badge.svg" alt="Lozana CI"></a>
+  </p>
+  <p align="center">
+    <strong>Dashboard and analytics UI for Loza</strong>
   </p>
 </p>
 
@@ -10,7 +13,7 @@
 
 ## Overview
 
-Loxana is a Vite + React 19 single-page application providing real-time observability dashboards for the Loxa platform.
+Lozana is a Vite + React 19 single-page application providing real-time observability dashboards for the Loza platform.
 
 ## Tech Stack
 
@@ -45,8 +48,8 @@ Output is in `dist/`.
 ## Docker
 
 ```bash
-docker build -t loxana .
-docker run -p 80:80 loxana
+docker build -t lozana .
+docker run -p 80:80 lozana
 ```
 
 ## Configuration
@@ -55,9 +58,9 @@ Environment variables (prefix `VITE_`):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_LOXANA_API_URL` | Collector API URL | `http://localhost:9308` |
-| `VITE_LOXANA_WS_URL` | WebSocket URL | `ws://localhost:9308` |
-| `VITE_LOXA_API_KEY` | API key for collector auth | (empty) |
+| `VITE_LOZANA_API_URL` | Collector API URL | `http://localhost:9308` |
+| `VITE_LOZANA_WS_URL` | WebSocket URL | `ws://localhost:9308` |
+| `VITE_LOZA_API_KEY` | API key for collector auth | (empty) |
 
 See `.env.example` for reference.
 

@@ -10,7 +10,7 @@ interface Session {
   expiresAt?: string;
 }
 
-const SESSION_KEY = "loxana:session";
+const SESSION_KEY = "lozana:session";
 
 /**
  * Retrieve the current session from localStorage.

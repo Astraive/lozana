@@ -54,6 +54,7 @@ function StatSkeleton() {
 }
 
 function ChartSkeleton() {
+  const heights = [36, 64, 42, 78, 55, 88, 48, 70];
   return (
     <Card className="bg-card border-border">
       <CardHeader>
@@ -61,11 +62,11 @@ function ChartSkeleton() {
       </CardHeader>
       <CardContent>
         <div className="h-[220px] flex items-end gap-2 px-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {heights.map((height, i) => (
             <div
               key={i}
               className="flex-1 bg-muted/40 rounded-t animate-pulse"
-              style={{ height: `${25 + Math.random() * 75}%` }}
+              style={{ height: `${height}%` }}
             />
           ))}
         </div>

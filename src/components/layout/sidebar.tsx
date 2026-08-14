@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/cn"
 import { APP_VERSION } from "@/lib/version"
+import { useCollectorHealth } from "@/lib/hooks"
 import {
   LayoutDashboard,
   Search,
@@ -37,6 +38,8 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { pathname } = useLocation()
+  const health = useCollectorHealth()
+  const isOnline = health.isSuccess && health.data?.status === "ok"
 
   // Close sidebar on Escape (mobile)
   const handleKeyDown = useCallback(
@@ -71,7 +74,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <Activity className="h-4 w-4 text-primary" />
         </div>
         <span className="text-base font-bold tracking-tight text-sidebar-foreground">
-          Loxana
+          Lozana
         </span>
         <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary">
           v{APP_VERSION}
@@ -147,10 +150,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* System status */}
         <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            {isOnline && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60 opacity-75" />
+            )}
+            <span className={cn(
+              "relative inline-flex h-2 w-2 rounded-full",
+              isOnline ? "bg-primary" : health.isLoading ? "bg-yellow-500" : "bg-destructive"
+            )} />
           </span>
-          <span>System Online</span>
+          <span>{isOnline ? "System Online" : health.isLoading ? "Connecting..." : "System Offline"}</span>
         </div>
       </div>
     </aside>

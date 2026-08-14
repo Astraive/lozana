@@ -59,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Menu className="h-4 w-4" />
         </button>
         <span className="ml-3 text-sm font-semibold tracking-tight text-foreground">
-          Loxana
+          Lozana
         </span>
       </header>
 

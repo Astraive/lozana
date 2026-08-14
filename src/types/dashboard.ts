@@ -11,9 +11,9 @@ export interface Dashboard {
 export interface Panel {
   id: string;
   title: string;
-  type: "stat" | "line" | "area" | "bar" | "pie" | "table" | "event-list" | "trace-list" | "heatmap";
+  type: "stat" | "line" | "area" | "bar" | "pie" | "table" | "event-list" | "trace-list" | "heatmap" | "query";
   query: string;
-  visualization: PanelVisualization;
+  visualization?: PanelVisualization;
   position: { x: number; y: number; w: number; h: number };
 }
 

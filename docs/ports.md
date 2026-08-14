@@ -1,8 +1,8 @@
-# Loxana Port Map
+# Lozana Port Map
 
 > All ports are configurable. Values below are canonical defaults.
 
-## Loxana
+## Lozana
 
 | Port | Context | Config |
 |------|---------|--------|
@@ -12,24 +12,24 @@
 
 ## Backend Connections
 
-Loxana connects to these Loxa backend services:
+Lozana connects to these Loza backend services:
 
 | Port | Service | Env Var |
 |------|---------|---------|
-| 9308 | Collector HTTP | `VITE_LOXANA_API_URL` |
-| 9308 | Collector WebSocket | `VITE_LOXANA_WS_URL` |
+| 9308 | Collector HTTP | `VITE_LOZANA_API_URL` |
+| 9308 | Collector WebSocket | `VITE_LOZANA_WS_URL` |
 | 9312 | Cortex HTTP | `VITE_CORTEX_URL` |
 
 ## Configuration
 
-Loxana uses Vite environment variables for configuration. Set via `.env` file or runtime env vars.
+Lozana uses Vite environment variables for configuration. Set via `.env` file or runtime env vars.
 
 ### .env file (not committed)
 
 ```bash
-VITE_LOXANA_API_URL=http://localhost:9308
-VITE_LOXANA_WS_URL=ws://localhost:9308
-VITE_LOXA_API_KEY=
+VITE_LOZANA_API_URL=http://localhost:9308
+VITE_LOZANA_WS_URL=ws://localhost:9308
+VITE_LOZA_API_KEY=
 VITE_CORTEX_URL=http://localhost:9312
 ```
 
@@ -41,19 +41,19 @@ Mount a `.env` file or pass env vars directly:
 # With .env file
 docker run -p 3000:8080 \
   --env-file .env \
-  ghcr.io/astraive/loxana:latest
+  ghcr.io/astraive/lozana:latest
 
 # With env vars
 docker run -p 3000:8080 \
-  -e VITE_LOXANA_API_URL=http://collector:9308 \
-  -e VITE_LOXANA_WS_URL=ws://collector:9308 \
+  -e VITE_LOZANA_API_URL=http://collector:9308 \
+  -e VITE_LOZANA_WS_URL=ws://collector:9308 \
   -e VITE_CORTEX_URL=http://cortex:9312 \
-  ghcr.io/astraive/loxana:latest
+  ghcr.io/astraive/lozana:latest
 ```
 
 ### Custom config file
 
-Loxana is a Vite SPA — configuration is embedded at build time via `VITE_*` env vars. For runtime configuration, use the `.env` file approach above.
+Lozana is a Vite SPA — configuration is embedded at build time via `VITE_*` env vars. For runtime configuration, use the `.env` file approach above.
 
 ## Deprecated Ports
 

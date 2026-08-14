@@ -63,7 +63,7 @@ export default function ServicesPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Services</h1>
           <p className="text-sm text-muted-foreground">
-            Service directory -- services emitting events to your Loxa collector
+            Service directory -- services emitting events to your Loza collector
           </p>
         </div>
         {serviceRows.length > 0 && (
@@ -94,7 +94,7 @@ export default function ServicesPage() {
             </p>
             <p className="text-xs text-muted-foreground/60 max-w-sm">
               Events will appear here once your services start sending data to
-              the Loxa collector
+              the Loza collector
             </p>
           </CardContent>
         </Card>
