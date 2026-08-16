@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { compileToDuckDB } from "@/lib/lql/wasm";
+import { LqlQueryError } from "@/lib/api/events";
 import { useQueryEvents } from "@/lib/hooks";
 import { useQueryStore } from "@/stores/query.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +21,6 @@ import {
   AlertTriangle,
   Terminal,
   Database,
-  Copy,
-  Check,
   Zap,
 } from "lucide-react";
 
@@ -54,51 +52,32 @@ function ResultsSkeleton() {
 export default function ExplorePage() {
   const [searchParams] = useSearchParams();
   const { query, setQuery } = useQueryStore();
-  const [executedSql, setExecutedSql] = useState("");
-  const [queryEnabled, setQueryEnabled] = useState(false);
-  const [compileError, setCompileError] = useState<string | null>(null);
-  const [copiedSql, setCopiedSql] = useState(false);
+  const urlQuery = searchParams.get("q") ?? "";
+  const [submittedQuery, setSubmittedQuery] = useState(urlQuery);
+  const [queryEnabled, setQueryEnabled] = useState(Boolean(urlQuery));
+  const queryResult = useQueryEvents(submittedQuery, {}, 1000, queryEnabled);
 
-  const queryResult = useQueryEvents(executedSql, queryEnabled);
-
-  // Auto-execute from URL query params
+  // Seed the shared query store from the URL without resetting local query state.
   useEffect(() => {
-    const urlQuery = searchParams.get("q");
     if (urlQuery) {
       setQuery(urlQuery);
-      try {
-        const sql = compileToDuckDB(urlQuery);
-        setExecutedSql(sql);
-        setQueryEnabled(true);
-        setCompileError(null);
-      } catch (err) {
-        setCompileError(String(err));
-      }
     }
-  }, [searchParams, setQuery]);
+  }, [urlQuery, setQuery]);
 
   const handleExecute = useCallback(() => {
-    try {
-      const sql = compileToDuckDB(query);
-      setExecutedSql(sql);
-      setQueryEnabled(true);
-      setCompileError(null);
-    } catch (err) {
-      setCompileError(String(err));
+    const source = query.trim();
+    if (!source) {
       setQueryEnabled(false);
+      return;
     }
+    setSubmittedQuery(source);
+    setQueryEnabled(true);
   }, [query]);
-
-  const handleCopySql = useCallback(() => {
-    navigator.clipboard.writeText(executedSql).then(() => {
-      setCopiedSql(true);
-      setTimeout(() => setCopiedSql(false), 2000);
-    }).catch(() => setCompileError("Clipboard permission denied"));
-  }, [executedSql]);
 
   const rows = queryResult.data?.rows ?? [];
   const columns = queryResult.data?.columns ?? [];
 
+  const diagnostics = queryResult.error instanceof LqlQueryError ? queryResult.error.diagnostics : [];
   return (
     <div className="space-y-6">
       {/* -- Header -------------------------------------------------------- */}
@@ -156,48 +135,20 @@ export default function ExplorePage() {
         </CardContent>
       </Card>
 
-      {/* -- Compile Error ------------------------------------------------- */}
-      {compileError && (
-        <Card className="border-destructive/30 bg-destructive/[0.05]">
-          <CardContent className="p-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-            <p className="text-sm text-destructive font-mono">{compileError}</p>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* -- Compiled SQL -------------------------------------------------- */}
-      {executedSql && (
-        <div className="rounded-lg bg-card border border-border p-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <span className="text-[11px] text-muted-foreground uppercase tracking-wider">
-              Compiled SQL
-            </span>
-            <code className="text-xs font-mono text-accent block mt-1 break-all">
-              {executedSql}
-            </code>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 shrink-0"
-            onClick={handleCopySql}
-          >
-            {copiedSql ? (
-              <Check className="h-3.5 w-3.5 text-primary" />
-            ) : (
-              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-          </Button>
-        </div>
-      )}
-
-      {/* -- Query Error --------------------------------------------------- */}
+      {/* -- Server diagnostics -------------------------------------------- */}
       {queryResult.error && (
         <Card className="border-destructive/30 bg-destructive/[0.05]">
-          <CardContent className="p-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-            <p className="text-sm text-destructive">{String(queryResult.error)}</p>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+              <p className="text-sm text-destructive">{String(queryResult.error)}</p>
+            </div>
+            {diagnostics.map((diagnostic, index) => (
+              <p key={`${diagnostic.code || "diagnostic"}-${index}`} className="text-xs text-destructive font-mono">
+                {diagnostic.code ? `${diagnostic.code}: ` : ""}{diagnostic.message}
+              </p>
+            ))}
           </CardContent>
         </Card>
       )}

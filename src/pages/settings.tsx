@@ -56,21 +56,21 @@ function ThemeOption({
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [collectorUrl, setCollectorUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
+  const [collectorUrl, setCollectorUrl] = useState(
+    () => localStorage.getItem("loza-collector-url") || import.meta.env.VITE_LOZANA_API_URL || "http://localhost:9308",
+  );
+  const [apiKey, setApiKey] = useState(
+    () => sessionStorage.getItem("loza-api-key") || localStorage.getItem("loza-api-key") || "",
+  );
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setCollectorUrl(
-      localStorage.getItem("loza-collector-url") || import.meta.env.VITE_LOZANA_API_URL || "http://localhost:9308",
-    );
     const storedKey = localStorage.getItem("loza-api-key");
     if (storedKey) {
       sessionStorage.setItem("loza-api-key", storedKey);
       localStorage.removeItem("loza-api-key");
     }
-    setApiKey(sessionStorage.getItem("loza-api-key") || "");
   }, []);
 
   function handleSave() {

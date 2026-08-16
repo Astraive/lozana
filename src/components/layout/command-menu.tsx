@@ -61,23 +61,12 @@ export function CommandMenu() {
     return () => window.removeEventListener("keydown", handler)
   }, [])
 
-  // Reset state when dialog opens
-  useEffect(() => {
-    if (open) {
-      setFilter("")
-      setActiveIndex(0)
-    }
-  }, [open])
 
   // Filter commands
   const filtered = COMMANDS.filter((cmd) =>
     cmd.label.toLowerCase().includes(filter.toLowerCase())
   )
 
-  // Reset active index when filter changes
-  useEffect(() => {
-    setActiveIndex(0)
-  }, [filter])
 
   // Scroll active item into view
   useEffect(() => {
@@ -128,7 +117,16 @@ export function CommandMenu() {
   }, {})
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (nextOpen) {
+          setFilter("")
+          setActiveIndex(0)
+        }
+      }}
+    >
       <DialogContent className="overflow-hidden border-border bg-card p-0 shadow-2xl shadow-black/40 sm:max-w-lg">
         <DialogHeader className="sr-only">
           <DialogTitle>Command Menu</DialogTitle>
@@ -139,7 +137,10 @@ export function CommandMenu() {
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <Input
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value)
+              setActiveIndex(0)
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Type a command..."
             className="border-0 bg-transparent pl-2.5 text-sm shadow-none focus-visible:ring-0 h-12"
