@@ -160,6 +160,7 @@ export class LiveStreamClient {
   private abortController: AbortController | null = null;
   private ws: WebSocket | null = null;
   private filters: StreamFilterOptions = {};
+  private searchRegex: RegExp | null = null;
   private paused = false;
 
   private stats: StreamStats = {
@@ -205,8 +206,17 @@ export class LiveStreamClient {
     this.emitStats();
   }
 
-  public setFilters(filters: StreamFilterOptions): void {
+  public setFilters(filters: StreamFilterOptions): string | null {
     this.filters = { ...filters };
+    this.searchRegex = null;
+    if (!filters.searchRegex) return null;
+    try {
+      this.searchRegex = new RegExp(filters.searchRegex, "i");
+      return null;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid regular expression";
+      return message;
+    }
   }
 
   public onEvent(cb: StreamEventCallback): () => void {
@@ -421,12 +431,12 @@ export class LiveStreamClient {
         return;
       }
 
-      // Check client-side regex filter if set
-      if (this.filters.searchRegex) {
-        const regex = new RegExp(this.filters.searchRegex, "i");
-        const matches = regex.test(JSON.stringify(event));
-        if (!matches) return;
-      }
+      if (this.filters.service && event.service !== this.filters.service) return;
+      if (this.filters.kind && event.kind !== this.filters.kind) return;
+      if (this.filters.level && event.level !== this.filters.level) return;
+      if (this.filters.trace_id && event.trace_id !== this.filters.trace_id) return;
+      if (this.filters.incident_id && event.incident_id !== this.filters.incident_id) return;
+      if (this.searchRegex && !this.searchRegex.test(JSON.stringify(event))) return;
 
       this.stats.eventsReceived++;
       this.secondWindowEvents++;

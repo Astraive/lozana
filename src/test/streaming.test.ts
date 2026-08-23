@@ -84,6 +84,10 @@ class FakeWebSocket {
 
   close(): void {}
 
+  message(data: string): void {
+    this.onmessage?.({ data });
+  }
+
   open(): void {
     this.onopen?.();
   }
@@ -145,6 +149,87 @@ describe("WebSocket tail contract", () => {
     first.closeFromServer();
 
     expect(client.getStatus()).toBe("connected");
+    client.disconnect();
+  });
+
+  it("applies changed service and level filters to active WebSocket events", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+    client.setFilters({ service: "checkout", level: "error" });
+
+    socket.message(
+      JSON.stringify({
+        event_id: "evt-match",
+        timestamp: "2026-08-24T04:10:00Z",
+        service: "checkout",
+        level: "error",
+      })
+    );
+    socket.message(
+      JSON.stringify({
+        event_id: "evt-service-miss",
+        timestamp: "2026-08-24T04:10:01Z",
+        service: "billing",
+        level: "error",
+      })
+    );
+    socket.message(
+      JSON.stringify({
+        event_id: "evt-level-miss",
+        timestamp: "2026-08-24T04:10:02Z",
+        service: "checkout",
+        level: "info",
+      })
+    );
+
+    expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-match"]);
+    client.disconnect();
+  });
+
+  it("reports invalid regex filters without dropping valid events", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+
+    expect(client.setFilters({ searchRegex: "[" })).toMatch(/regular expression/i);
+    socket.message(
+      JSON.stringify({
+        event_id: "evt-valid",
+        timestamp: "2026-08-24T04:11:00Z",
+        service: "checkout",
+      })
+    );
+
+    expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-valid"]);
     client.disconnect();
   });
 });
