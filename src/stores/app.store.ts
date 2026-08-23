@@ -57,12 +57,57 @@ const DEFAULT_WS_URL =
       "ws://localhost:9308/tail"
     : "ws://localhost:9308/tail";
 
-const DEFAULT_API_KEY =
-  typeof window !== "undefined"
-    ? sessionStorage.getItem("loza-api-key") ||
-      localStorage.getItem("loza-api-key") ||
-      ""
-    : "";
+const DEFAULT_API_KEY = (() => {
+  if (typeof window === "undefined") return "";
+  const sessionKey = sessionStorage.getItem("loza-api-key") || "";
+  localStorage.removeItem("loza-api-key");
+  return sessionKey;
+})();
+
+type PersistedAppState = Pick<
+  AppState,
+  | "collectorUrl"
+  | "cortexUrl"
+  | "wsUrl"
+  | "activeCollector"
+  | "activeEnvironment"
+  | "theme"
+  | "autoRefreshInterval"
+  | "sidebarCollapsed"
+  | "timeRange"
+>;
+
+export function selectPersistedAppState(state: AppState): PersistedAppState {
+  return {
+    collectorUrl: state.collectorUrl,
+    cortexUrl: state.cortexUrl,
+    wsUrl: state.wsUrl,
+    activeCollector: state.activeCollector,
+    activeEnvironment: state.activeEnvironment,
+    theme: state.theme,
+    autoRefreshInterval: state.autoRefreshInterval,
+    sidebarCollapsed: state.sidebarCollapsed,
+    timeRange: state.timeRange,
+  };
+}
+
+export function migratePersistedAppState(persistedState: unknown): PersistedAppState {
+  const state =
+    persistedState && typeof persistedState === "object"
+      ? (persistedState as Partial<PersistedAppState>)
+      : {};
+  return {
+    collectorUrl: state.collectorUrl ?? DEFAULT_COLLECTOR_URL,
+    cortexUrl: state.cortexUrl ?? DEFAULT_CORTEX_URL,
+    wsUrl: state.wsUrl ?? DEFAULT_WS_URL,
+    activeCollector: state.activeCollector ?? "",
+    activeEnvironment: state.activeEnvironment ?? "all",
+    theme: state.theme ?? "dark",
+    autoRefreshInterval: state.autoRefreshInterval ?? 0,
+    sidebarCollapsed: state.sidebarCollapsed ?? false,
+    timeRange: state.timeRange ?? "1h",
+  };
+}
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -108,11 +153,10 @@ export const useAppStore = create<AppState>()(
         const cleanKey = key.trim();
         if (get().apiKey === cleanKey) return;
         if (typeof window !== "undefined") {
+          localStorage.removeItem("loza-api-key");
           if (cleanKey) {
-            localStorage.setItem("loza-api-key", cleanKey);
             sessionStorage.setItem("loza-api-key", cleanKey);
           } else {
-            localStorage.removeItem("loza-api-key");
             sessionStorage.removeItem("loza-api-key");
           }
         }
@@ -163,18 +207,9 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "loza-app-store",
-      partialize: (state) => ({
-        collectorUrl: state.collectorUrl,
-        cortexUrl: state.cortexUrl,
-        wsUrl: state.wsUrl,
-        apiKey: state.apiKey,
-        activeCollector: state.activeCollector,
-        activeEnvironment: state.activeEnvironment,
-        theme: state.theme,
-        autoRefreshInterval: state.autoRefreshInterval,
-        sidebarCollapsed: state.sidebarCollapsed,
-        timeRange: state.timeRange,
-      }),
+      version: 1,
+      partialize: selectPersistedAppState,
+      migrate: migratePersistedAppState,
     }
   )
 );

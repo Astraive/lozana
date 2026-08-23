@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { resolveCollectorPath, getCollectorUrl, getCortexUrl } from "@/lib/api/client";
 import { queryClient, scopedQueryKey } from "@/lib/query-client";
-import { useAppStore } from "@/stores/app.store";
+import {
+  migratePersistedAppState,
+  selectPersistedAppState,
+  useAppStore,
+} from "@/stores/app.store";
 
 describe("API Client & Scoped Routing", () => {
   beforeEach(() => {
@@ -61,5 +65,14 @@ describe("API Client & Scoped Routing", () => {
 
     expect(useAppStore.getState().queryScopeRevision).toBe(0);
     expect(queryClient.getQueryData(scopedQueryKey(0, "collector", "health"))).toEqual({ status: "ok" });
+  });
+
+  it("excludes API credentials from durable Zustand state", async () => {
+    const state = { ...useAppStore.getState(), apiKey: "lz_secret" };
+
+    expect(selectPersistedAppState(state)).not.toHaveProperty("apiKey");
+    expect(migratePersistedAppState({ theme: "light", apiKey: "legacy_secret" })).not.toHaveProperty(
+      "apiKey"
+    );
   });
 });
