@@ -1,184 +1,345 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { useDashboardStore } from "@/stores/dashboard.store";
+import { exportDashboardJson, importDashboardJson } from "@/lib/storage/dashboard-storage";
+import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
+import { VariableBar } from "@/components/dashboard/VariableBar";
+import { PanelEditorModal } from "@/components/dashboard/PanelEditorModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { useDashboardStore } from "@/stores/dashboard.store";
-import { cn } from "@/lib/utils";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  LayoutGrid,
   Plus,
+  Download,
+  Upload,
+  Copy,
   Trash2,
-  Play,
-  LayoutDashboard,
-  Terminal,
-  BarChart3,
+  Edit2,
+  Sparkles,
+  RotateCcw,
+  Check,
+  ChevronDown,
+  Layers,
+  Save,
 } from "lucide-react";
-
-/* -- Page ------------------------------------------------------------------ */
+import { toast } from "sonner";
+import type { Dashboard, Panel } from "@/types/dashboard";
 
 export default function DashboardsPage() {
-  const { panels, addPanel, removePanel } = useDashboardStore();
-  const navigate = useNavigate();
-  const [showAdd, setShowAdd] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newLql, setNewLql] = useState("");
+  const {
+    dashboards,
+    activeDashboardId,
+    setActiveDashboardId,
+    addDashboard,
+    updateDashboard,
+    deleteDashboard,
+    duplicateDashboard,
+    resetToPresets,
+    addPanelToActiveDashboard,
+    isEditingLayout,
+    setIsEditingLayout,
+    getActiveDashboard,
+  } = useDashboardStore();
 
-  const handleAdd = () => {
-    if (newName.trim() && newLql.trim()) {
-      addPanel({
-        id: `saved-${Date.now()}`,
-        title: newName.trim(),
-        type: "query",
-        query: newLql.trim(),
-        position: { x: 0, y: 0, w: 6, h: 4 },
-      });
-      setNewName("");
-      setNewLql("");
-      setShowAdd(false);
+  const activeDashboard = getActiveDashboard() || dashboards[0];
+
+  // Modals state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [importJson, setImportJson] = useState("");
+  const [newPanelOpen, setNewPanelOpen] = useState(false);
+  const [editingPanel, setEditingPanel] = useState<Panel | null>(null);
+
+  const handleCreateDashboard = () => {
+    if (!newTitle.trim()) return;
+    const newId = addDashboard({
+      title: newTitle.trim(),
+      description: newDescription.trim(),
+      tags: ["custom"],
+      variables: [
+        {
+          id: "var-service",
+          name: "service",
+          label: "Service",
+          type: "query",
+          query: "from events | distinct service",
+          defaultValue: "all",
+          includeAll: true,
+        },
+      ],
+      panels: [],
+    });
+    setNewTitle("");
+    setNewDescription("");
+    setCreateOpen(false);
+    toast.success("Created new dashboard");
+  };
+
+  const handleImportDashboard = () => {
+    try {
+      const imported = importDashboardJson(importJson);
+      const newId = addDashboard(imported);
+      setImportJson("");
+      setImportOpen(false);
+      toast.success(`Imported dashboard: ${imported.title}`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Invalid JSON format");
     }
   };
 
+  const handleExportDashboard = () => {
+    if (!activeDashboard) return;
+    const json = exportDashboardJson(activeDashboard);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dashboard-${activeDashboard.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Dashboard JSON exported");
+  };
+
+  const handleAddNewPanel = () => {
+    const newId = addPanelToActiveDashboard({
+      title: "New Time Series",
+      type: "timeseries",
+      query: "from events | summarize event_count = count() by bin(timestamp, 5m) | sort bin asc",
+      position: { x: 0, y: 100, w: 6, h: 4 },
+      visualization: { chartType: "area", color: "#3b82f6" },
+    });
+    const panel = activeDashboard.panels.find((p) => p.id === newId) || {
+      id: newId,
+      title: "New Time Series",
+      type: "timeseries" as const,
+      query: "from events | summarize event_count = count() by bin(timestamp, 5m) | sort bin asc",
+      position: { x: 0, y: 100, w: 6, h: 4 },
+      visualization: { chartType: "area" as const, color: "#3b82f6" },
+    };
+    setEditingPanel(panel);
+    setNewPanelOpen(true);
+  };
+
   return (
-    <div className="space-y-6">
-      {/* -- Header -------------------------------------------------------- */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboards</h1>
-          <p className="text-sm text-muted-foreground">
-            Custom dashboard panels powered by LQL queries
-          </p>
-        </div>
-        <Dialog open={showAdd} onOpenChange={setShowAdd}>
-          <DialogTrigger className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
-            <Plus className="h-4 w-4" />
-            Add Panel
-          </DialogTrigger>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <LayoutDashboard className="h-4 w-4 text-primary" />
-                Add Dashboard Panel
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Panel Name
-                </label>
-                <Input
-                  placeholder="Error rate over time"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="focus-visible:ring-primary/30"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  LQL Query
-                </label>
-                <Textarea
-                  className="w-full h-24 bg-background border-border font-mono text-sm resize-none focus-visible:ring-primary/30"
-                  placeholder='from events | where level = "error" | limit 10'
-                  value={newLql}
-                  onChange={(e) => setNewLql(e.target.value)}
-                />
-              </div>
-              <Button
-                onClick={handleAdd}
-                disabled={!newName.trim() || !newLql.trim()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full"
-              >
-                Save Panel
+    <div className="space-y-4 pb-16">
+      {/* Top Header & Dashboard Selector */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <LayoutGrid className="h-4 w-4" />
+          </div>
+
+          {/* Active Dashboard Switcher Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-2 text-sm font-semibold">
+                <span className="truncate max-w-[200px]">{activeDashboard?.title || "Dashboards"}</span>
+                {activeDashboard?.isPreset && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1 bg-primary/10 text-primary">
+                    Preset
+                  </Badge>
+                )}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-72 max-h-96 overflow-y-auto">
+              <div className="p-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Select Dashboard ({dashboards.length})
+              </div>
+              <DropdownMenuSeparator />
+              {dashboards.map((dash) => (
+                <DropdownMenuItem
+                  key={dash.id}
+                  onClick={() => setActiveDashboardId(dash.id)}
+                  className="flex items-center justify-between py-2 cursor-pointer"
+                >
+                  <div className="flex flex-col overflow-hidden mr-2">
+                    <span className="font-semibold text-xs truncate">{dash.title}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">
+                      {dash.panels.length} panels
+                    </span>
+                  </div>
+                  {dash.id === activeDashboardId && <Check className="h-3.5 w-3.5 text-primary" />}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setCreateOpen(true)} className="gap-2 text-xs">
+                <Plus className="h-3.5 w-3.5" /> Create New Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setImportOpen(true)} className="gap-2 text-xs">
+                <Upload className="h-3.5 w-3.5" /> Import from JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {activeDashboard?.description && (
+            <p className="text-xs text-muted-foreground hidden lg:inline max-w-md truncate">
+              {activeDashboard.description}
+            </p>
+          )}
+        </div>
+
+        {/* Dashboard Actions Bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditingLayout(!isEditingLayout)}
+            className={`h-8 text-xs gap-1.5 ${
+              isEditingLayout ? "bg-primary/20 text-primary border-primary/40" : ""
+            }`}
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+            {isEditingLayout ? "Finish Editing" : "Edit Layout"}
+          </Button>
+
+          <Button size="sm" onClick={handleAddNewPanel} className="h-8 text-xs gap-1.5 bg-primary">
+            <Plus className="h-3.5 w-3.5" />
+            Add Panel
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                Actions <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 text-xs">
+              <DropdownMenuItem onClick={handleExportDashboard} className="gap-2">
+                <Download className="h-3.5 w-3.5" /> Export JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => duplicateDashboard(activeDashboard.id)}
+                className="gap-2"
+              >
+                <Copy className="h-3.5 w-3.5" /> Duplicate Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetToPresets} className="gap-2 text-muted-foreground">
+                <RotateCcw className="h-3.5 w-3.5" /> Reset Starter Presets
+              </DropdownMenuItem>
+              {dashboards.length > 1 && !activeDashboard.isPreset && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => deleteDashboard(activeDashboard.id)}
+                    className="gap-2 text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete Dashboard
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* -- Panels -------------------------------------------------------- */}
-      {panels.length === 0 ? (
-        <Card className="bg-card border-border">
-          <CardContent className="flex flex-col items-center justify-center py-20 text-center px-4">
-            <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-              <LayoutDashboard className="h-7 w-7 text-muted-foreground/40" />
-            </div>
-            <p className="text-sm font-medium text-muted-foreground mb-1">
-              No dashboard panels yet
-            </p>
-            <p className="text-xs text-muted-foreground/60 max-w-sm">
-              Add LQL query panels to build your custom dashboard. Each panel
-              runs a query and displays results.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {panels.map((panel) => (
-            <Card
-              key={panel.id}
-              className={cn(
-                "bg-card border-border hover:border-border/60 transition-all group",
-              )}
-            >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="h-7 w-7 rounded-md bg-accent/10 flex items-center justify-center shrink-0">
-                        <BarChart3 className="h-3.5 w-3.5 text-accent" />
-                      </div>
-                      <span className="text-sm font-medium truncate">
-                        {panel.title}
-                      </span>
-                    </div>
-                    <code className="text-xs font-mono text-muted-foreground block truncate pl-9">
-                      {panel.query}
-                    </code>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/30">
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-                    <Terminal className="h-3 w-3" />
-                    LQL Panel
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() =>
-                        navigate(
-                          `/explore?q=${encodeURIComponent(panel.query)}`,
-                        )
-                      }
-                    >
-                      <Play className="h-3 w-3 mr-1" />
-                      Run
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => removePanel(panel.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Dynamic Template Variables Bar */}
+      {activeDashboard.variables && activeDashboard.variables.length > 0 && (
+        <VariableBar variables={activeDashboard.variables} />
       )}
+
+      {/* Responsive Dashboard Grid */}
+      <DashboardGrid dashboard={activeDashboard} />
+
+      {/* Create Dashboard Modal */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" />
+              Create Custom Dashboard
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Create a new empty dashboard grid with custom variables and panels
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Title</label>
+              <Input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="e.g. Payments & Checkout Reliability"
+                className="text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Description</label>
+              <Input
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Optional description"
+                className="text-xs"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)} className="text-xs">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleCreateDashboard} className="text-xs">
+                Create Dashboard
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dashboard Modal */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Upload className="h-4 w-4 text-primary" />
+              Import Dashboard JSON
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Paste a previously exported Lozana dashboard JSON definition
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Textarea
+              value={importJson}
+              onChange={(e) => setImportJson(e.target.value)}
+              placeholder="Paste JSON here..."
+              className="font-mono text-xs h-48"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(false)} className="text-xs">
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleImportDashboard} className="text-xs">
+                Import
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Panel Editor Modal for adding new panel */}
+      <PanelEditorModal
+        panel={editingPanel}
+        open={newPanelOpen}
+        onOpenChange={setNewPanelOpen}
+        onSave={() => setNewPanelOpen(false)}
+      />
     </div>
   );
 }

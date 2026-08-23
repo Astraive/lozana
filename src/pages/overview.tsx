@@ -159,17 +159,17 @@ export default function OverviewPage() {
 
   const errorChartData = (errors.data?.rows ?? []).map((r) => ({
     name: String(r.event_name || r.error_code || "unknown"),
-    count: Number(r.count || 0),
+    count: Number(r.event_count || r.count || 0),
   }));
 
   const serviceChartData = (services.data?.rows ?? []).map((r) => ({
     name: String(r.service || "unknown"),
-    count: Number(r.count || 0),
+    count: Number(r.event_count || r.count || 0),
   }));
 
   const timelineData = (eventsOverTime.data?.rows ?? []).map((r) => ({
-    time: String(r.bucket || r.time || ""),
-    count: Number(r.count || 0),
+    time: String(r.bin || r.bucket || r.time || ""),
+    count: Number(r.event_count || r.count || 0),
   }));
 
   return (
