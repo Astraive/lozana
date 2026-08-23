@@ -1,22 +1,36 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryEvents, getTraceEvents, getRecentEvents, getEventsOverTime, getTopServices, getTopErrors, getErrorEvents, getEventById } from "@/lib/api/events";
+import { queryLqlEvents, getTraceEvents, getRecentEvents, getEventsOverTime, getTopServices, getTopErrors, getErrorEvents, getEventById } from "@/lib/api/events";
 import { getCollectorHealth, getCollectorVersion } from "@/lib/api/collector";
 import type { QueryResult, CollectorHealth } from "@/types/event";
+import { scopedQueryKey } from "@/lib/query-client";
+import { useAppStore } from "@/stores/app.store";
+
+function useScopedQueryKey(...parts: readonly unknown[]): readonly unknown[] {
+  const scopeRevision = useAppStore((state) => state.queryScopeRevision);
+  return scopedQueryKey(scopeRevision, ...parts);
+}
 
 // ── Events ─────────────────────────────────────────────────────────────────
 
-export function useQueryEvents(sql: string, enabled = true) {
+export function useQueryEvents(
+  query: string,
+  parameters: Record<string, { type?: string; value: unknown }> = {},
+  limit = 1000,
+  enabled = true,
+) {
+  const queryKey = useScopedQueryKey("events", "lql", query, parameters, limit);
   return useQuery<QueryResult>({
-    queryKey: ["events", "query", sql],
-    queryFn: () => queryEvents(sql),
-    enabled: enabled && sql.length > 0,
+    queryKey,
+    queryFn: () => queryLqlEvents(query, parameters, limit),
+    enabled: enabled && query.trim().length > 0,
     staleTime: 30_000,
   });
 }
 
 export function useRecentEvents(limit = 50) {
+  const queryKey = useScopedQueryKey("events", "recent", limit);
   return useQuery<QueryResult>({
-    queryKey: ["events", "recent", limit],
+    queryKey,
     queryFn: () => getRecentEvents(limit),
     refetchInterval: 10_000,
     staleTime: 5_000,
@@ -24,8 +38,9 @@ export function useRecentEvents(limit = 50) {
 }
 
 export function useEventsOverTime(intervalMinutes = 5, hours = 24) {
+  const queryKey = useScopedQueryKey("events", "over-time", intervalMinutes, hours);
   return useQuery<QueryResult>({
-    queryKey: ["events", "over-time", intervalMinutes, hours],
+    queryKey,
     queryFn: () => getEventsOverTime(intervalMinutes, hours),
     refetchInterval: 30_000,
     staleTime: 15_000,
@@ -33,8 +48,9 @@ export function useEventsOverTime(intervalMinutes = 5, hours = 24) {
 }
 
 export function useTopServices(limit = 10) {
+  const queryKey = useScopedQueryKey("events", "top-services", limit);
   return useQuery<QueryResult>({
-    queryKey: ["events", "top-services", limit],
+    queryKey,
     queryFn: () => getTopServices(limit),
     refetchInterval: 30_000,
     staleTime: 15_000,
@@ -42,8 +58,9 @@ export function useTopServices(limit = 10) {
 }
 
 export function useTopErrors(limit = 10) {
+  const queryKey = useScopedQueryKey("events", "top-errors", limit);
   return useQuery<QueryResult>({
-    queryKey: ["events", "top-errors", limit],
+    queryKey,
     queryFn: () => getTopErrors(limit),
     refetchInterval: 30_000,
     staleTime: 15_000,
@@ -51,8 +68,9 @@ export function useTopErrors(limit = 10) {
 }
 
 export function useErrorEvents(limit = 100) {
+  const queryKey = useScopedQueryKey("events", "errors", limit);
   return useQuery<QueryResult>({
-    queryKey: ["events", "errors", limit],
+    queryKey,
     queryFn: () => getErrorEvents(limit),
     refetchInterval: 15_000,
     staleTime: 5_000,
@@ -60,8 +78,9 @@ export function useErrorEvents(limit = 100) {
 }
 
 export function useEventById(eventId: string) {
+  const queryKey = useScopedQueryKey("events", "by-id", eventId);
   return useQuery<QueryResult>({
-    queryKey: ["events", "by-id", eventId],
+    queryKey,
     queryFn: () => getEventById(eventId),
     enabled: eventId.length > 0,
     staleTime: 60_000,
@@ -71,8 +90,9 @@ export function useEventById(eventId: string) {
 // ── Traces ─────────────────────────────────────────────────────────────────
 
 export function useTraceEvents(traceId: string) {
+  const queryKey = useScopedQueryKey("traces", traceId);
   return useQuery<QueryResult>({
-    queryKey: ["traces", traceId],
+    queryKey,
     queryFn: () => getTraceEvents(traceId),
     enabled: traceId.length > 0,
     staleTime: 60_000,
@@ -82,8 +102,9 @@ export function useTraceEvents(traceId: string) {
 // ── Collector ──────────────────────────────────────────────────────────────
 
 export function useCollectorHealth() {
+  const queryKey = useScopedQueryKey("collector", "health");
   return useQuery<CollectorHealth>({
-    queryKey: ["collector", "health"],
+    queryKey,
     queryFn: getCollectorHealth,
     refetchInterval: 10_000,
     staleTime: 5_000,
@@ -93,8 +114,9 @@ export function useCollectorHealth() {
 }
 
 export function useCollectorVersion() {
+  const queryKey = useScopedQueryKey("collector", "version");
   return useQuery<{ version: string; build: string }>({
-    queryKey: ["collector", "version"],
+    queryKey,
     queryFn: getCollectorVersion,
     staleTime: 300_000,
   });
@@ -104,8 +126,14 @@ export function useCollectorVersion() {
 
 export function useLqlQuery() {
   return useMutation({
-    mutationFn: async ({ sql }: { sql: string }) => {
-      return queryEvents(sql);
-    },
+    mutationFn: async ({
+      query,
+      parameters = {},
+      limit = 1000,
+    }: {
+      query: string;
+      parameters?: Record<string, { type?: string; value: unknown }>;
+      limit?: number;
+    }) => queryLqlEvents(query, parameters, limit),
   });
 }
