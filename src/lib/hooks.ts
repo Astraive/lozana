@@ -1,6 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryLqlEvents, getTraceEvents, getRecentEvents, getEventsOverTime, getTopServices, getTopErrors, getErrorEvents, getEventById } from "@/lib/api/events";
 import { getCollectorHealth, getCollectorVersion } from "@/lib/api/collector";
+import { getServiceGraph } from "@/lib/api/cortex";
+import type { ServiceGraph } from "@/types/cortex";
 import type { QueryResult, CollectorHealth } from "@/types/event";
 import { scopedQueryKey } from "@/lib/query-client";
 import { useAppStore } from "@/stores/app.store";
@@ -119,6 +121,15 @@ export function useCollectorVersion() {
     queryKey,
     queryFn: getCollectorVersion,
     staleTime: 300_000,
+  });
+}
+
+export function useServiceGraph(depth = 2) {
+  const queryKey = useScopedQueryKey("cortex", "service-graph", depth);
+  return useQuery<ServiceGraph>({
+    queryKey,
+    queryFn: () => getServiceGraph(undefined, depth),
+    staleTime: 30_000,
   });
 }
 
