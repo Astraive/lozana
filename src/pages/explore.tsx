@@ -4,7 +4,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import type * as MonacoType from "monaco-editor";
 import { LqlQueryError } from "@/lib/api/events";
 import { useQueryEvents } from "@/lib/hooks";
-import { useQueryStore, type QueryTab } from "@/stores/query.store";
+import { useQueryStore } from "@/stores/query.store";
 import { useAppStore } from "@/stores/app.store";
 import { registerLqlLanguage, LQL_LANGUAGE_ID } from "@/lib/lql/monaco-lql";
 import { registerLqlCompletionProvider } from "@/lib/lql/completion-provider";
@@ -18,17 +18,14 @@ import { EventDiffModal } from "@/components/explorer/EventDiffModal";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
 import { BarChart } from "@/components/charts/BarChart";
 import { PieChart } from "@/components/charts/PieChart";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Play,
   Terminal,
   Zap,
   History,
   Sparkles,
-  Layers,
   Table as TableIcon,
   LineChart,
   BarChart2,
@@ -47,7 +44,14 @@ import { toast } from "sonner";
 import type { LozaEvent } from "@/types/event";
 
 export default function ExplorePage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
+
+  return <ExploreWorkspace key={urlQuery} urlQuery={urlQuery} />;
+}
+
+function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
+  const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { theme } = useAppStore();
 
@@ -58,16 +62,15 @@ export default function ExplorePage() {
     closeTab,
     setActiveTabId,
     updateActiveTabQuery,
-    pinTab,
     addHistoryEntry,
     getActiveQuery,
   } = useQueryStore();
 
-  const urlQuery = searchParams.get("q") ?? "";
   const activeQuery = getActiveQuery();
 
-  const [submittedQuery, setSubmittedQuery] = useState(urlQuery || activeQuery);
-  const [queryEnabled, setQueryEnabled] = useState(Boolean(urlQuery || activeQuery));
+  const initialQuery = urlQuery || activeQuery;
+  const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
+  const [queryEnabled, setQueryEnabled] = useState(Boolean(initialQuery));
   const [isVisualMode, setIsVisualMode] = useState(false);
   const [activeView, setActiveView] = useState<"table" | "timeseries" | "bar" | "pie" | "json">("table");
 
@@ -84,12 +87,10 @@ export default function ExplorePage() {
   // TanStack Query for execution
   const queryResult = useQueryEvents(submittedQuery, {}, 1000, queryEnabled);
 
-  // Sync URL query
+  // Keep the active tab aligned with a query supplied by navigation.
   useEffect(() => {
     if (urlQuery && urlQuery !== activeQuery) {
       updateActiveTabQuery(urlQuery);
-      setSubmittedQuery(urlQuery);
-      setQueryEnabled(true);
     }
   }, [urlQuery, activeQuery, updateActiveTabQuery]);
 

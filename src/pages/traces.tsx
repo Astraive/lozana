@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, type FormEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useTraceEvents, useQueryEvents } from "@/lib/hooks";
 import { buildTraceTree, type TraceSpan } from "@/lib/traces/trace-builder";
@@ -7,26 +7,58 @@ import { SpanDetailPanel } from "@/components/traces/SpanDetailPanel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Search,
   GitBranch,
-  Clock,
-  Layers,
   Sparkles,
   ArrowRight,
-  BrainCircuit,
   RefreshCw,
   AlertTriangle,
 } from "lucide-react";
+
+interface TraceSearchFormProps {
+  traceId: string;
+  loading: boolean;
+  onSearch: (traceId: string) => void;
+}
+
+function TraceSearchForm({ traceId, loading, onSearch }: TraceSearchFormProps) {
+  const [searchInput, setSearchInput] = useState(traceId);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const cleanTraceId = searchInput.trim();
+    if (cleanTraceId) onSearch(cleanTraceId);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 max-w-md w-full">
+      <div className="relative flex-1">
+        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search by Trace ID (e.g. tr_8f9a2e...)"
+          className="pl-8 text-xs h-8 font-mono"
+        />
+      </div>
+      <Button type="submit" size="sm" className="h-8 text-xs gap-1.5" disabled={loading}>
+        {loading ? (
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Search className="h-3.5 w-3.5" />
+        )}
+        Lookup Trace
+      </Button>
+    </form>
+  );
+}
 
 export default function TracesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const urlTraceId = searchParams.get("trace_id") || "";
-  const [searchInput, setSearchInput] = useState(urlTraceId);
-  const [activeTraceId, setActiveTraceId] = useState(urlTraceId);
+  const activeTraceId = searchParams.get("trace_id") || "";
   const [selectedSpan, setSelectedSpan] = useState<TraceSpan | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
@@ -41,25 +73,12 @@ export default function TracesPage() {
     !activeTraceId
   );
 
-  useEffect(() => {
-    if (urlTraceId && urlTraceId !== activeTraceId) {
-      setActiveTraceId(urlTraceId);
-      setSearchInput(urlTraceId);
-    }
-  }, [urlTraceId, activeTraceId]);
-
-  const handleSearch = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const clean = searchInput.trim();
-    if (!clean) return;
-    setActiveTraceId(clean);
-    setSearchParams({ trace_id: clean });
+  const handleSearch = (traceId: string) => {
+    setSearchParams({ trace_id: traceId });
   };
 
-  const handleSelectTraceSuggestion = (id: string) => {
-    setSearchInput(id);
-    setActiveTraceId(id);
-    setSearchParams({ trace_id: id });
+  const handleSelectTraceSuggestion = (traceId: string) => {
+    setSearchParams({ trace_id: traceId });
   };
 
   const events = traceQuery.data?.rows ?? [];
@@ -82,25 +101,12 @@ export default function TracesPage() {
         </div>
 
         {/* Trace ID Search Form */}
-        <form onSubmit={handleSearch} className="flex items-center gap-2 max-w-md w-full">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by Trace ID (e.g. tr_8f9a2e...)"
-              className="pl-8 text-xs h-8 font-mono"
-            />
-          </div>
-          <Button type="submit" size="sm" className="h-8 text-xs gap-1.5" disabled={traceQuery.isLoading}>
-            {traceQuery.isLoading ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Search className="h-3.5 w-3.5" />
-            )}
-            Lookup Trace
-          </Button>
-        </form>
+        <TraceSearchForm
+          key={activeTraceId}
+          traceId={activeTraceId}
+          loading={traceQuery.isLoading}
+          onSearch={handleSearch}
+        />
       </div>
 
       {/* Main Workspace */}

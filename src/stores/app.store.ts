@@ -54,8 +54,8 @@ const DEFAULT_WS_URL =
   typeof window !== "undefined"
     ? localStorage.getItem("loza-ws-url") ||
       (import.meta.env.VITE_WS_URL as string) ||
-      "ws://localhost:9308/tail"
-    : "ws://localhost:9308/tail";
+      "ws://localhost:9308/ws/tail"
+    : "ws://localhost:9308/ws/tail";
 
 const DEFAULT_API_KEY = (() => {
   if (typeof window === "undefined") return "";
@@ -197,7 +197,7 @@ export const useAppStore = create<AppState>()(
         set({
           collectorUrl: "http://localhost:9308",
           cortexUrl: "http://localhost:9312",
-          wsUrl: "ws://localhost:9308/tail",
+          wsUrl: "ws://localhost:9308/ws/tail",
           apiKey: "",
           activeCollector: "",
           activeEnvironment: "all",

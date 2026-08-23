@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { resolveCollectorPath, getCollectorUrl, getCortexUrl } from "@/lib/api/client";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { fetchJSON, postJSON, resolveCollectorPath, getCollectorUrl, getCortexUrl } from "@/lib/api/client";
 import { queryClient, scopedQueryKey } from "@/lib/query-client";
 import {
   migratePersistedAppState,
@@ -18,6 +18,7 @@ describe("API Client & Scoped Routing", () => {
       apiKey: "",
       queryScopeRevision: 0,
     });
+    vi.restoreAllMocks();
   });
 
   it("returns base URL defaults correctly", () => {
@@ -74,5 +75,36 @@ describe("API Client & Scoped Routing", () => {
     expect(migratePersistedAppState({ theme: "light", apiKey: "legacy_secret" })).not.toHaveProperty(
       "apiKey"
     );
+  });
+
+  it("sets JSON content type only for requests with a body", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    } as Response);
+
+    await fetchJSON("/health");
+    await postJSON("/query", { query: "from events" });
+
+    const getHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    const postHeaders = new Headers(fetchMock.mock.calls[1]?.[1]?.headers);
+    expect(getHeaders.has("Content-Type")).toBe(false);
+    expect(postHeaders.get("Content-Type")).toBe("application/json");
+  });
+
+  it("removes reusable abort signal listeners after a completed request", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    } as Response);
+    const controller = new AbortController();
+    const add = vi.spyOn(controller.signal, "addEventListener");
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+
+    await fetchJSON("/health", { signal: controller.signal });
+
+    const abortListener = add.mock.calls.find(([event]) => event === "abort")?.[1];
+    expect(abortListener).toBeDefined();
+    expect(remove).toHaveBeenCalledWith("abort", abortListener);
   });
 });

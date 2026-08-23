@@ -128,19 +128,11 @@ export async function getTopErrors(limit = 10): Promise<QueryResult> {
 }
 
 export async function getDistinctServices(): Promise<string[]> {
-  try {
-    const res = await queryLqlEvents("from events | distinct service | take 100");
-    return res.rows.map((r) => String(r.service || r.distinct_service || "")).filter(Boolean);
-  } catch {
-    return [];
-  }
+  const res = await queryLqlEvents("from events | distinct service | take 100");
+  return res.rows.map((r) => String(r.service || r.distinct_service || "")).filter(Boolean);
 }
 
 export async function getDistinctEnvironments(): Promise<string[]> {
-  try {
-    const res = await queryLqlEvents("from events | distinct environment | take 50");
-    return res.rows.map((r) => String(r.environment || r.distinct_environment || "")).filter(Boolean);
-  } catch {
-    return [];
-  }
+  const res = await queryLqlEvents("from events | distinct environment | take 50");
+  return res.rows.map((r) => String(r.environment || r.distinct_environment || "")).filter(Boolean);
 }

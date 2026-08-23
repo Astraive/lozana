@@ -10,12 +10,7 @@ import {
   Trash2,
   Activity,
   Search,
-  Filter,
   ArrowDown,
-  Sparkles,
-  Wifi,
-  WifiOff,
-  AlertTriangle,
   Highlighter,
   Zap,
 } from "lucide-react";
@@ -33,7 +28,6 @@ export function LiveTailView() {
   const [serviceFilter, setServiceFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
   const [searchRegex, setSearchRegex] = useState("");
-  const [searchRegexError, setSearchRegexError] = useState<string | null>(null);
   const [highlightKeyword, setHighlightKeyword] = useState("");
 
   // Inspector Drawer
@@ -54,7 +48,7 @@ export function LiveTailView() {
       setEvents(client.getEvents());
     });
 
-    const unsubEvents = client.onEvent((_evt) => {
+    const unsubEvents = client.onEvent(() => {
       setEvents(client.getEvents());
     });
 
@@ -70,12 +64,11 @@ export function LiveTailView() {
 
   // Update client filters when changed
   useEffect(() => {
-    const error = client.setFilters({
+    client.setFilters({
       service: serviceFilter || undefined,
       level: levelFilter || undefined,
       searchRegex: searchRegex || undefined,
     });
-    setSearchRegexError(error);
   }, [client, serviceFilter, levelFilter, searchRegex]);
 
   // Auto-scroll to bottom when new events arrive
@@ -104,12 +97,19 @@ export function LiveTailView() {
     client.setCapacity(cap);
   };
 
-  const displayRegex = useMemo(() => {
-    if (!searchRegex) return null;
+  const { displayRegex, searchRegexError } = useMemo(() => {
+    if (!searchRegex) {
+      return { displayRegex: null, searchRegexError: null };
+    }
+
     try {
-      return new RegExp(searchRegex, "i");
-    } catch {
-      return null;
+      return { displayRegex: new RegExp(searchRegex, "i"), searchRegexError: null };
+    } catch (error) {
+      return {
+        displayRegex: null,
+        searchRegexError:
+          error instanceof Error ? error.message : "Invalid regular expression",
+      };
     }
   }, [searchRegex]);
 

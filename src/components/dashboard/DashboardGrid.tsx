@@ -3,7 +3,7 @@ import { useDashboardStore } from "@/stores/dashboard.store";
 import { PanelRenderer } from "@/components/panels/PanelRenderer";
 import { PanelEditorModal } from "./PanelEditorModal";
 import { Button } from "@/components/ui/button";
-import { Plus, LayoutGrid, Sparkles } from "lucide-react";
+import { Plus, LayoutGrid } from "lucide-react";
 import type { Dashboard, Panel } from "@/types/dashboard";
 
 interface DashboardGridProps {
@@ -13,7 +13,6 @@ interface DashboardGridProps {
 
 export function DashboardGrid({ dashboard, onEditPanel }: DashboardGridProps) {
   const {
-    isEditingLayout,
     addPanelToActiveDashboard,
     updatePanelInActiveDashboard,
     removePanelFromActiveDashboard,

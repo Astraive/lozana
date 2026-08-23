@@ -25,7 +25,12 @@ import {
 /* -- Page ------------------------------------------------------------------ */
 
 export default function QueriesPage() {
-  const { panels, addPanel, removePanel } = useDashboardStore();
+  const {
+    getActiveDashboard,
+    addPanelToActiveDashboard,
+    removePanelFromActiveDashboard,
+  } = useDashboardStore();
+  const panels = getActiveDashboard()?.panels ?? [];
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLql, setNewLql] = useState("");
@@ -33,10 +38,9 @@ export default function QueriesPage() {
 
   const handleAdd = () => {
     if (newName.trim() && newLql.trim()) {
-      addPanel({
-        id: `query-${Date.now()}`,
+      addPanelToActiveDashboard({
         title: newName.trim(),
-        type: "query",
+        type: "table",
         query: newLql.trim(),
         position: { x: 0, y: 0, w: 6, h: 4 },
       });
@@ -200,7 +204,7 @@ export default function QueriesPage() {
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => removePanel(panel.id)}
+                      onClick={() => removePanelFromActiveDashboard(panel.id)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>

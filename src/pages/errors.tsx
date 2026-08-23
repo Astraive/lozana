@@ -1,300 +1,309 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useErrorEvents } from "@/lib/hooks";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useErrorEvents } from "@/lib/hooks";
-import { cn } from "@/lib/utils";
-import {
-  AlertTriangle,
   Search,
-  ShieldAlert,
-  ShieldX,
-  Info,
+  BrainCircuit,
   Bug,
-  BarChart3,
+  ArrowRight,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import { toast } from "sonner";
+import type { LozaEvent } from "@/types/event";
 
-/* -- Level Badge ----------------------------------------------------------- */
-
-function LevelBadge({ level }: { level: string }) {
-  const config: Record<string, { color: string; icon: typeof AlertTriangle; label: string }> = {
-    fatal: {
-      color: "bg-destructive/15 text-destructive border-destructive/30",
-      icon: ShieldX,
-      label: "FATAL",
-    },
-    error: {
-      color: "bg-destructive/10 text-destructive border-destructive/20",
-      icon: ShieldAlert,
-      label: "ERROR",
-    },
-    warn: {
-      color: "bg-[#FFF1F1]/10 text-[#FFF1F1] border-[#FFF1F1]/20",
-      icon: AlertTriangle,
-      label: "WARN",
-    },
-    info: {
-      color: "bg-accent/10 text-accent border-accent/20",
-      icon: Info,
-      label: "INFO",
-    },
-  };
-  const c = config[level] ?? config.error;
-  const Icon = c.icon;
-
-  return (
-    <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium border", c.color)}>
-      <Icon className="h-3 w-3" />
-      {c.label}
-    </span>
-  );
+interface ErrorGroup {
+  fingerprint: string;
+  error_type: string;
+  error_code: string;
+  message_pattern: string;
+  service: string;
+  count: number;
+  first_seen: string;
+  last_seen: string;
+  sample_event: LozaEvent | Record<string, unknown>;
+  events: (LozaEvent | Record<string, unknown>)[];
 }
 
-/* -- Skeleton -------------------------------------------------------------- */
-
-function TableSkeleton() {
-  return (
-    <div className="space-y-0">
-      {Array.from({ length: 10 }).map((_, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-4 px-4 py-3 border-b border-border/20"
-        >
-          <div className="h-5 w-16 bg-muted/60 rounded animate-pulse" />
-          <div className="h-5 w-24 bg-muted/60 rounded animate-pulse" />
-          <div className="h-5 w-32 bg-muted/60 rounded animate-pulse" />
-          <div className="flex-1 h-5 bg-muted/40 rounded animate-pulse" />
-          <div className="h-5 w-36 bg-muted/60 rounded animate-pulse" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* -- Page ------------------------------------------------------------------ */
+const EMPTY_ROWS: Record<string, unknown>[] = [];
 
 export default function ErrorsPage() {
-  const errors = useErrorEvents(100);
-  const [searchFilter, setSearchFilter] = useState("");
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [expandedFingerprint, setExpandedFingerprint] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const rows = errors.data?.rows ?? [];
+  const errorQuery = useErrorEvents(100);
+  const rows = errorQuery.data?.rows ?? EMPTY_ROWS;
 
-  const filteredRows = rows.filter((r) => {
-    if (!searchFilter) return true;
-    const term = searchFilter.toLowerCase();
-    const service = String(r.service || "").toLowerCase();
-    const event = String(r.event || "").toLowerCase();
-    const message = String(r.message || r.error_message || "").toLowerCase();
+  // Group errors by fingerprint: error_type + error_code + service
+  const errorGroups: ErrorGroup[] = useMemo(() => {
+    const map = new Map<string, ErrorGroup>();
+
+    for (const evt of rows) {
+      const type = String(evt.error_type || "UnhandledException");
+      const code = String(evt.error_code || "ERR_500");
+      const service = String(evt.service || "unknown");
+      const msg = String(evt.error_message || evt.message || "An unexpected error occurred");
+      const timestamp = String(evt.timestamp || new Date().toISOString());
+
+      const fingerprint = `${service}::${type}::${code}`;
+
+      if (!map.has(fingerprint)) {
+        map.set(fingerprint, {
+          fingerprint,
+          error_type: type,
+          error_code: code,
+          message_pattern: msg,
+          service,
+          count: 0,
+          first_seen: timestamp,
+          last_seen: timestamp,
+          sample_event: evt,
+          events: [],
+        });
+      }
+
+      const group = map.get(fingerprint)!;
+      group.count++;
+      group.events.push(evt);
+      if (new Date(timestamp) > new Date(group.last_seen)) {
+        group.last_seen = timestamp;
+      }
+      if (new Date(timestamp) < new Date(group.first_seen)) {
+        group.first_seen = timestamp;
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [rows]);
+
+  const filteredGroups = errorGroups.filter((g) => {
+    const q = search.toLowerCase();
     return (
-      service.includes(term) ||
-      event.includes(term) ||
-      message.includes(term)
+      g.error_type.toLowerCase().includes(q) ||
+      g.error_code.toLowerCase().includes(q) ||
+      g.service.toLowerCase().includes(q) ||
+      g.message_pattern.toLowerCase().includes(q)
     );
   });
 
-  const errorCount = filteredRows.filter(
-    (r) => String(r.level || "") === "error" || String(r.level || "") === "fatal",
-  ).length;
-  const warnCount = filteredRows.filter(
-    (r) => String(r.level || "") === "warn",
-  ).length;
+  const handleCopy = (text: string, key: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success("Copied to clipboard");
+    setTimeout(() => setCopiedKey(null), 1500);
+  };
+
+  const toggleExpand = (fp: string) => {
+    setExpandedFingerprint((prev) => (prev === fp ? null : fp));
+  };
 
   return (
-    <div className="space-y-6">
-      {/* -- Header -------------------------------------------------------- */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Errors</h1>
-          <p className="text-sm text-muted-foreground">
-            Error analysis -- recent error and fatal events
-          </p>
-        </div>
-        {filteredRows.length > 0 && (
-          <div className="flex items-center gap-2">
-            {errorCount > 0 && (
-              <Badge variant="outline" className="text-[10px] font-mono text-destructive border-destructive/30">
-                {errorCount} error{errorCount !== 1 ? "s" : ""}
-              </Badge>
-            )}
-            {warnCount > 0 && (
-              <Badge variant="outline" className="text-[10px] font-mono text-[#FFF1F1] border-[#FFF1F1]/30">
-                {warnCount} warn{warnCount !== 1 ? "s" : ""}
-              </Badge>
-            )}
+    <div className="space-y-6 pb-16">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
+            <Bug className="h-4 w-4" />
           </div>
-        )}
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Error Intelligence & Fingerprinting</h1>
+            <p className="text-xs text-muted-foreground">
+              Intelligent error grouping, panic diagnostics, and autonomous root-cause triggers
+            </p>
+          </div>
+        </div>
+
+        <div className="relative w-72">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search error signatures..."
+            className="pl-8 text-xs h-8"
+          />
+        </div>
       </div>
 
-      {/* -- Stats Row ----------------------------------------------------- */}
-      {!errors.isLoading && rows.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-destructive/10 flex items-center justify-center">
-                <ShieldAlert className="h-4 w-4 text-destructive" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Errors</p>
-                <p className="text-lg font-bold font-mono text-destructive">{errorCount}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-[#FFF1F1]/10 flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 text-[#FFF1F1]" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Warnings</p>
-                <p className="text-lg font-bold font-mono text-[#FFF1F1]">{warnCount}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-muted/30 flex items-center justify-center">
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
-                <p className="text-lg font-bold font-mono">{filteredRows.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Total Error Events
+            </span>
+            <div className="text-2xl font-bold font-mono text-red-400">{rows.length}</div>
+          </CardContent>
+        </Card>
 
-      {/* -- Search -------------------------------------------------------- */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={searchFilter}
-          onChange={(e) => setSearchFilter(e.target.value)}
-          placeholder="Filter by service, event, or message..."
-          className="h-9 text-sm bg-card border-border pl-9 focus-visible:ring-destructive/30"
-        />
-      </div>
-
-      {/* -- Error Table --------------------------------------------------- */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Bug className="h-4 w-4 text-destructive" />
-              Error Events
-            </CardTitle>
-            <Badge variant="outline" className="text-[10px] font-mono">
-              {filteredRows.length} event{filteredRows.length !== 1 ? "s" : ""}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {errors.isLoading ? (
-            <TableSkeleton />
-          ) : filteredRows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <ShieldAlert className="h-7 w-7 text-primary opacity-40" />
-              </div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">
-                {searchFilter ? "No matching errors found" : "No errors detected"}
-              </p>
-              <p className="text-xs text-muted-foreground/60 max-w-sm">
-                {searchFilter
-                  ? "Try adjusting your search filter"
-                  : "All systems nominal -- no error or fatal events in the recent window"}
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-[600px] overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium sticky top-0 bg-card w-24">
-                      Level
-                    </TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium sticky top-0 bg-card w-32">
-                      Service
-                    </TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium sticky top-0 bg-card w-40">
-                      Event
-                    </TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium sticky top-0 bg-card">
-                      Message
-                    </TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium sticky top-0 bg-card text-right w-40">
-                      Timestamp
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRows.map((row, i) => {
-                    const level = String(row.level || "error");
-                    return (
-                      <TableRow
-                        key={i}
-                        className={cn(
-                          "hover:bg-muted/50 transition-colors",
-                          i % 2 === 1 && "bg-muted/[0.03]",
-                        )}
-                      >
-                        <TableCell className="py-2.5">
-                          <LevelBadge level={level} />
-                        </TableCell>
-                        <TableCell className="text-xs py-2.5">
-                          <span className="font-mono text-foreground">
-                            {String(row.service || "unknown")}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs font-mono py-2.5 truncate max-w-[160px]">
-                          {String(row.event || "\u2014")}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground py-2.5 truncate max-w-[300px]">
-                          {String(
-                            row.message || row.error_message || "\u2014",
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-right font-mono text-muted-foreground/70 py-2.5">
-                          {row.timestamp
-                            ? new Date(
-                                String(row.timestamp),
-                              ).toLocaleString()
-                            : "\u2014"}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* -- Error State --------------------------------------------------- */}
-      {errors.error && (
-        <Card className="border-destructive/30 bg-destructive/[0.05]">
-          <CardContent className="p-4 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-destructive">
-                Failed to load error events
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {String(errors.error)}
-              </p>
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Distinct Error Signatures
+            </span>
+            <div className="text-2xl font-bold font-mono text-purple-400">
+              {errorGroups.length}
             </div>
           </CardContent>
         </Card>
-      )}
+
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Failing Services
+            </span>
+            <div className="text-2xl font-bold font-mono text-amber-400">
+              {new Set(errorGroups.map((g) => g.service)).size}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Grouped Errors List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Error Groups ({filteredGroups.length})
+          </h3>
+        </div>
+
+        {filteredGroups.length === 0 ? (
+          <div className="p-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl bg-card/40">
+            No error groups matching search query.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredGroups.map((group) => {
+              const isExpanded = expandedFingerprint === group.fingerprint;
+              const sample = group.sample_event;
+
+              return (
+                <Card
+                  key={group.fingerprint}
+                  className="bg-card border-border/80 hover:border-border transition-all overflow-hidden shadow-sm"
+                >
+                  {/* Group Header Row */}
+                  <div
+                    onClick={() => toggleExpand(group.fingerprint)}
+                    className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <button className="text-muted-foreground p-0.5">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+
+                      <div className="space-y-1 overflow-hidden">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="destructive" className="font-mono text-[10px]">
+                            {group.error_code}
+                          </Badge>
+                          <Badge variant="secondary" className="font-mono text-[10px]">
+                            {group.service}
+                          </Badge>
+                          <span className="font-mono text-xs font-bold text-foreground truncate">
+                            {group.error_type}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground font-mono truncate max-w-xl">
+                          {group.message_pattern}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-sm text-red-400">
+                          {group.count} events
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-mono">
+                          Last: {group.last_seen.substring(11, 19)}
+                        </div>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(
+                            `/incidents?incident_id=${encodeURIComponent(String(sample.incident_id || sample.trace_id || group.fingerprint))}`
+                          );
+                        }}
+                        className="h-8 text-xs gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        <BrainCircuit className="h-3.5 w-3.5" />
+                        Cortex RCA
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details: Stack Trace & Sample Events */}
+                  {isExpanded && (
+                    <div className="p-4 pt-0 border-t border-border/50 bg-muted/15 space-y-3">
+                      {Boolean(sample.error_stack) && (
+                        <div className="space-y-1.5 pt-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Sample Stack Trace
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => handleCopy(String(sample.error_stack), group.fingerprint, e)}
+                              className="h-6 text-xs gap-1"
+                            >
+                              {copiedKey === group.fingerprint ? (
+                                <Check className="h-3 w-3 text-emerald-500" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                              Copy
+                            </Button>
+                          </div>
+                          <pre className="p-3 rounded-lg bg-black/40 text-[11px] font-mono text-red-300 overflow-x-auto border border-border/70 leading-relaxed">
+                            {String(sample.error_stack)}
+                          </pre>
+                        </div>
+                      )}
+
+                      <div className="pt-2 flex items-center justify-between">
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          Fingerprint: <code>{group.fingerprint}</code>
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            navigate(
+                              `/explore?q=${encodeURIComponent(`from events | where service = "${group.service}" and (level = "error" or level = "fatal") | sort timestamp desc | limit 50`)}`
+                            )
+                          }
+                          className="h-7 text-xs gap-1.5"
+                        >
+                          Query Events in Explore
+                          <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

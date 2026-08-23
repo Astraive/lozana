@@ -30,15 +30,12 @@ import {
   Copy,
   Trash2,
   Edit2,
-  Sparkles,
   RotateCcw,
   Check,
   ChevronDown,
-  Layers,
-  Save,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { Dashboard, Panel } from "@/types/dashboard";
+import type { Panel } from "@/types/dashboard";
 
 export default function DashboardsPage() {
   const {
@@ -46,7 +43,6 @@ export default function DashboardsPage() {
     activeDashboardId,
     setActiveDashboardId,
     addDashboard,
-    updateDashboard,
     deleteDashboard,
     duplicateDashboard,
     resetToPresets,
@@ -69,7 +65,7 @@ export default function DashboardsPage() {
 
   const handleCreateDashboard = () => {
     if (!newTitle.trim()) return;
-    const newId = addDashboard({
+    addDashboard({
       title: newTitle.trim(),
       description: newDescription.trim(),
       tags: ["custom"],
@@ -95,7 +91,7 @@ export default function DashboardsPage() {
   const handleImportDashboard = () => {
     try {
       const imported = importDashboardJson(importJson);
-      const newId = addDashboard(imported);
+      addDashboard(imported);
       setImportJson("");
       setImportOpen(false);
       toast.success(`Imported dashboard: ${imported.title}`);

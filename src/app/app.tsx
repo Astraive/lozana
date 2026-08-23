@@ -15,6 +15,7 @@ const DashboardsPage = lazy(() => import("@/pages/dashboards"));
 const QueriesPage = lazy(() => import("@/pages/queries"));
 const AlertsPage = lazy(() => import("@/pages/alerts"));
 const CollectorPage = lazy(() => import("@/pages/collector"));
+const IncidentsPage = lazy(() => import("@/pages/incidents"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const NotFoundPage = lazy(() => import("@/pages/not-found"));
 
@@ -43,6 +44,7 @@ export default function App() {
                 <Route path="/queries" element={<QueriesPage />} />
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/collector" element={<CollectorPage />} />
+                <Route path="/incidents" element={<IncidentsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

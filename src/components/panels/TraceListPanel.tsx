@@ -1,6 +1,6 @@
 import { PanelWrapper } from "./PanelWrapper";
 import { Badge } from "@/components/ui/badge";
-import { GitBranch, Clock, ArrowRight } from "lucide-react";
+import { GitBranch, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Panel } from "@/types/dashboard";
 

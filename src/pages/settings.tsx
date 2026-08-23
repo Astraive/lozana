@@ -1,24 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/components/layout/theme-provider";
-import { useAppStore, type Environment, type ThemeMode } from "@/stores/app.store";
+import { useAppStore } from "@/stores/app.store";
 import { testCollectorConnection, testCortexConnection } from "@/lib/api/client";
 import { APP_VERSION } from "@/lib/version";
 import {
   Key,
   Server,
-  Check,
   Moon,
   Sun,
   Monitor,
   Save,
-  Info,
   Palette,
-  Globe,
   BrainCircuit,
   Activity,
   Layers,
@@ -37,17 +33,29 @@ interface ConnectionTestState {
   error?: string;
 }
 
+function useSynchronizedDraft<T>(storeValue: T) {
+  const [previousStoreValue, setPreviousStoreValue] = useState(storeValue);
+  const [draft, setDraft] = useState(storeValue);
+
+  if (!Object.is(previousStoreValue, storeValue)) {
+    setPreviousStoreValue(storeValue);
+    setDraft(storeValue);
+  }
+
+  return [draft, setDraft] as const;
+}
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const store = useAppStore();
 
-  const [collectorUrl, setCollectorUrl] = useState(store.collectorUrl);
-  const [cortexUrl, setCortexUrl] = useState(store.cortexUrl);
-  const [wsUrl, setWsUrl] = useState(store.wsUrl);
-  const [apiKey, setApiKey] = useState(store.apiKey);
-  const [activeCollector, setActiveCollector] = useState(store.activeCollector);
-  const [activeEnvironment, setActiveEnvironment] = useState<Environment>(store.activeEnvironment);
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState(store.autoRefreshInterval);
+  const [collectorUrl, setCollectorUrl] = useSynchronizedDraft(store.collectorUrl);
+  const [cortexUrl, setCortexUrl] = useSynchronizedDraft(store.cortexUrl);
+  const [wsUrl, setWsUrl] = useSynchronizedDraft(store.wsUrl);
+  const [apiKey, setApiKey] = useSynchronizedDraft(store.apiKey);
+  const [activeCollector, setActiveCollector] = useSynchronizedDraft(store.activeCollector);
+  const [activeEnvironment, setActiveEnvironment] = useSynchronizedDraft(store.activeEnvironment);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useSynchronizedDraft(store.autoRefreshInterval);
 
   const [collectorTest, setCollectorTest] = useState<ConnectionTestState>({
     testing: false,
@@ -65,24 +73,6 @@ export default function SettingsPage() {
     status: 0,
   });
 
-  // Sync state if store updates from elsewhere
-  useEffect(() => {
-    setCollectorUrl(store.collectorUrl);
-    setCortexUrl(store.cortexUrl);
-    setWsUrl(store.wsUrl);
-    setApiKey(store.apiKey);
-    setActiveCollector(store.activeCollector);
-    setActiveEnvironment(store.activeEnvironment);
-    setAutoRefreshInterval(store.autoRefreshInterval);
-  }, [
-    store.collectorUrl,
-    store.cortexUrl,
-    store.wsUrl,
-    store.apiKey,
-    store.activeCollector,
-    store.activeEnvironment,
-    store.autoRefreshInterval,
-  ]);
 
   const handleTestCollector = async () => {
     setCollectorTest((s) => ({ ...s, testing: true, tested: false }));
@@ -135,7 +125,7 @@ export default function SettingsPage() {
     store.resetConnectionDefaults();
     setCollectorUrl("http://localhost:9308");
     setCortexUrl("http://localhost:9312");
-    setWsUrl("ws://localhost:9308/tail");
+    setWsUrl("ws://localhost:9308/ws/tail");
     setApiKey("");
     setActiveCollector("");
     setActiveEnvironment("all");
@@ -271,7 +261,7 @@ export default function SettingsPage() {
               <Input
                 value={wsUrl}
                 onChange={(e) => setWsUrl(e.target.value)}
-                placeholder="ws://localhost:9308/tail"
+                placeholder="ws://localhost:9308/ws/tail"
                 className="font-mono text-sm"
               />
             </div>

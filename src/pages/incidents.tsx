@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { reconstructIncident, getIncidentGraph } from "@/lib/api/cortex";
 import { IncidentWorkbench } from "@/components/cortex/IncidentWorkbench";
@@ -13,49 +13,75 @@ export default function IncidentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const urlIncidentId = searchParams.get("incident_id")?.trim() ?? "";
+  const [syncedIncidentId, setSyncedIncidentId] = useState(urlIncidentId);
   const [incidentIdInput, setIncidentIdInput] = useState(urlIncidentId);
   const [reconstruction, setReconstruction] = useState<CortexReconstruction | null>(null);
   const [graph, setGraph] = useState<IncidentGraph | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(urlIncidentId));
   const [error, setError] = useState(false);
   const [mode, setMode] = useState<"fast" | "deep">("fast");
+  const modeRef = useRef(mode);
 
-  const handleReconstruct = useCallback(async (targetId: string) => {
+  const loadIncident = useCallback((
+    targetId: string,
+    targetMode: "fast" | "deep",
+  ) => {
+    void Promise.all([
+      reconstructIncident(targetId, targetMode),
+      getIncidentGraph(targetId),
+    ])
+      .then(([recData, graphData]) => {
+        setReconstruction(recData);
+        setGraph(graphData);
+        toast.success("Incident reconstructed by Cortex");
+      })
+      .catch(() => {
+        setError(true);
+        toast.error("Cortex could not reconstruct this incident");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  if (syncedIncidentId !== urlIncidentId) {
+    setSyncedIncidentId(urlIncidentId);
+    setIncidentIdInput(urlIncidentId);
+    setReconstruction(null);
+    setGraph(null);
+    setLoading(Boolean(urlIncidentId));
+    setError(false);
+  }
+
+  const startReconstruction = (
+    targetId: string,
+    targetMode: "fast" | "deep" = mode,
+  ) => {
     if (!targetId) return;
     setLoading(true);
     setError(false);
     setReconstruction(null);
     setGraph(null);
-    try {
-      const [recData, graphData] = await Promise.all([
-        reconstructIncident(targetId, mode),
-        getIncidentGraph(targetId),
-      ]);
-      setReconstruction(recData);
-      setGraph(graphData);
-      toast.success("Incident reconstructed by Cortex");
-    } catch {
-      setError(true);
-      toast.error("Cortex could not reconstruct this incident");
-    } finally {
-      setLoading(false);
-    }
-  }, [mode]);
+    void loadIncident(targetId, targetMode);
+  };
 
   useEffect(() => {
-    setIncidentIdInput(urlIncidentId);
-    if (urlIncidentId) void handleReconstruct(urlIncidentId);
-    else {
-      setReconstruction(null);
-      setGraph(null);
-      setError(false);
+    if (urlIncidentId) {
+      void loadIncident(urlIncidentId, modeRef.current);
     }
-  }, [handleReconstruct, urlIncidentId]);
+  }, [loadIncident, urlIncidentId]);
+
+  const handleModeChange = (nextMode: "fast" | "deep") => {
+    setMode(nextMode);
+    modeRef.current = nextMode;
+    setIncidentIdInput(urlIncidentId);
+    if (urlIncidentId) startReconstruction(urlIncidentId, nextMode);
+  };
 
   const handleSubmit = () => {
     const targetId = incidentIdInput.trim();
     if (!targetId) return;
-    if (targetId === urlIncidentId) void handleReconstruct(targetId);
+    if (targetId === urlIncidentId) startReconstruction(targetId);
     else setSearchParams({ incident_id: targetId });
   };
 
@@ -85,7 +111,7 @@ export default function IncidentsPage() {
           />
           <select
             value={mode}
-            onChange={(event) => setMode(event.target.value as "fast" | "deep")}
+            onChange={(event) => handleModeChange(event.target.value as "fast" | "deep")}
             aria-label="Reconstruction mode"
             className="h-8 rounded bg-background border border-input px-2 text-xs font-mono"
           >
@@ -121,7 +147,7 @@ export default function IncidentsPage() {
                 Cortex returned no reconstruction for this request. Verify the incident ID and active connection, then retry.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => handleReconstruct(urlIncidentId)} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => startReconstruction(urlIncidentId)} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" />
               Retry
             </Button>
