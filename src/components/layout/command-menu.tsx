@@ -18,9 +18,9 @@ import {
   ListChecks,
   Bell,
   Activity,
+  BrainCircuit,
   Settings,
 } from "lucide-react"
-
 interface Command {
   id: string
   label: string
@@ -35,6 +35,7 @@ const COMMANDS: Command[] = [
   { id: "traces", label: "Search Traces", icon: GitBranch, href: "/traces", category: "Navigation" },
   { id: "errors", label: "View Errors", icon: AlertTriangle, href: "/errors", category: "Navigation" },
   { id: "services", label: "Services", icon: Server, href: "/services", category: "Navigation" },
+  { id: "incidents", label: "Cortex Incidents & RCA", icon: BrainCircuit, href: "/incidents", category: "Intelligence" },
   { id: "dashboards", label: "Dashboards", icon: LayoutGrid, href: "/dashboards", category: "Navigation" },
   { id: "queries", label: "Saved Queries", icon: ListChecks, href: "/queries", category: "Navigation" },
   { id: "alerts", label: "Alerts", icon: Bell, href: "/alerts", category: "Navigation" },

@@ -25,6 +25,7 @@ export interface LozaEvent {
   request_id?: string;
   trace_id?: string;
   span_id?: string;
+  parent_span_id?: string;
   incident_id?: string;
   method?: string;
   path?: string;

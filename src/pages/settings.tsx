@@ -1,283 +1,426 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/components/layout/theme-provider";
-import { cn } from "@/lib/utils";
+import { useAppStore } from "@/stores/app.store";
+import { testCollectorConnection, testCortexConnection } from "@/lib/api/client";
 import { APP_VERSION } from "@/lib/version";
 import {
   Key,
   Server,
-  Check,
   Moon,
   Sun,
   Monitor,
   Save,
-  Info,
   Palette,
-  Globe,
+  BrainCircuit,
+  Activity,
+  Layers,
+  RotateCcw,
+  RefreshCw,
+  Zap,
 } from "lucide-react";
+import { toast } from "sonner";
 
-/* -- Theme Option ---------------------------------------------------------- */
-
-function ThemeOption({
-  label,
-  icon: Icon,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  icon: typeof Moon;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex flex-col items-center gap-2 rounded-lg border p-4 transition-all w-full",
-        isActive
-          ? "border-primary/50 bg-primary/[0.08] text-primary"
-          : "border-border hover:border-border/60 text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Icon className="h-5 w-5" />
-      <span className="text-xs font-medium">{label}</span>
-      {isActive && (
-        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-      )}
-    </button>
-  );
+interface ConnectionTestState {
+  testing: boolean;
+  tested: boolean;
+  ok: boolean;
+  latencyMs: number;
+  status: number;
+  error?: string;
 }
 
-/* -- Page ------------------------------------------------------------------ */
+function useSynchronizedDraft<T>(storeValue: T) {
+  const [previousStoreValue, setPreviousStoreValue] = useState(storeValue);
+  const [draft, setDraft] = useState(storeValue);
+
+  if (!Object.is(previousStoreValue, storeValue)) {
+    setPreviousStoreValue(storeValue);
+    setDraft(storeValue);
+  }
+
+  return [draft, setDraft] as const;
+}
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [collectorUrl, setCollectorUrl] = useState(
-    () => localStorage.getItem("loza-collector-url") || import.meta.env.VITE_LOZANA_API_URL || "http://localhost:9308",
-  );
-  const [apiKey, setApiKey] = useState(
-    () => sessionStorage.getItem("loza-api-key") || localStorage.getItem("loza-api-key") || "",
-  );
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+  const store = useAppStore();
 
-  useEffect(() => {
-    const storedKey = localStorage.getItem("loza-api-key");
-    if (storedKey) {
-      sessionStorage.setItem("loza-api-key", storedKey);
-      localStorage.removeItem("loza-api-key");
-    }
-  }, []);
+  const [collectorUrl, setCollectorUrl] = useSynchronizedDraft(store.collectorUrl);
+  const [cortexUrl, setCortexUrl] = useSynchronizedDraft(store.cortexUrl);
+  const [wsUrl, setWsUrl] = useSynchronizedDraft(store.wsUrl);
+  const [apiKey, setApiKey] = useSynchronizedDraft(store.apiKey);
+  const [activeCollector, setActiveCollector] = useSynchronizedDraft(store.activeCollector);
+  const [activeEnvironment, setActiveEnvironment] = useSynchronizedDraft(store.activeEnvironment);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useSynchronizedDraft(store.autoRefreshInterval);
 
-  function handleSave() {
-    const normalizedUrl = normalizeCollectorUrl(collectorUrl);
-    if (!normalizedUrl) {
-      setError("Collector URL must start with http:// or https://");
-      setSaved(false);
-      return;
-    }
-    setError("");
-    localStorage.setItem("loza-collector-url", normalizedUrl);
-    localStorage.removeItem("loza-api-key");
-    if (apiKey) {
-      sessionStorage.setItem("loza-api-key", apiKey);
+  const [collectorTest, setCollectorTest] = useState<ConnectionTestState>({
+    testing: false,
+    tested: false,
+    ok: false,
+    latencyMs: 0,
+    status: 0,
+  });
+
+  const [cortexTest, setCortexTest] = useState<ConnectionTestState>({
+    testing: false,
+    tested: false,
+    ok: false,
+    latencyMs: 0,
+    status: 0,
+  });
+
+
+  const handleTestCollector = async () => {
+    setCollectorTest((s) => ({ ...s, testing: true, tested: false }));
+    const result = await testCollectorConnection();
+    setCollectorTest({
+      testing: false,
+      tested: true,
+      ok: result.ok,
+      latencyMs: result.latencyMs,
+      status: result.status,
+      error: result.error,
+    });
+    if (result.ok) {
+      toast.success(`Collector online (${result.latencyMs}ms)`);
     } else {
-      sessionStorage.removeItem("loza-api-key");
+      toast.error(`Collector connection failed: ${result.error || "Offline"}`);
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+  };
+
+  const handleTestCortex = async () => {
+    setCortexTest((s) => ({ ...s, testing: true, tested: false }));
+    const result = await testCortexConnection();
+    setCortexTest({
+      testing: false,
+      tested: true,
+      ok: result.ok,
+      latencyMs: result.latencyMs,
+      status: result.status,
+      error: result.error,
+    });
+    if (result.ok) {
+      toast.success(`Cortex online (${result.latencyMs}ms)`);
+    } else {
+      toast.error(`Cortex connection failed: ${result.error || "Offline"}`);
+    }
+  };
+
+  const handleSave = () => {
+    store.setCollectorUrl(collectorUrl);
+    store.setCortexUrl(cortexUrl);
+    store.setWsUrl(wsUrl);
+    store.setApiKey(apiKey);
+    store.setActiveCollector(activeCollector);
+    store.setActiveEnvironment(activeEnvironment);
+    store.setAutoRefreshInterval(autoRefreshInterval);
+    toast.success("Settings saved successfully");
+  };
+
+  const handleResetDefaults = () => {
+    store.resetConnectionDefaults();
+    setCollectorUrl("http://localhost:9308");
+    setCortexUrl("http://localhost:9312");
+    setWsUrl("ws://localhost:9308/ws/tail");
+    setApiKey("");
+    setActiveCollector("");
+    setActiveEnvironment("all");
+    setAutoRefreshInterval(0);
+    toast.info("Connection settings reset to defaults");
+  };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* -- Header -------------------------------------------------------- */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure Lozana and your Loza connection
-        </p>
+    <div className="space-y-6 max-w-4xl pb-16">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">System Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Configure Loza Collector data-plane, Cortex intelligence engine, tenancy, and UI preferences
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleResetDefaults} className="gap-1.5">
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset Defaults
+          </Button>
+          <Button size="sm" onClick={handleSave} className="gap-1.5">
+            <Save className="h-3.5 w-3.5" />
+            Save Changes
+          </Button>
+        </div>
       </div>
 
-      {/* -- Connection ---------------------------------------------------- */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-accent/10 flex items-center justify-center">
-              <Globe className="h-3.5 w-3.5 text-accent" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Collector Connection Card */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                  <Server className="h-4 w-4" />
+                </div>
+                Loza Collector (:9308)
+              </CardTitle>
+              {collectorTest.tested && (
+                <Badge variant={collectorTest.ok ? "default" : "destructive"} className="text-xs">
+                  {collectorTest.ok ? `${collectorTest.latencyMs}ms` : "Offline"}
+                </Badge>
+              )}
             </div>
-            Connection
+            <CardDescription className="text-xs">
+              Data-plane ingest, LQL execution, NDJSON tail, and schema registry
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Collector HTTP URL
+              </label>
+              <Input
+                value={collectorUrl}
+                onChange={(e) => setCollectorUrl(e.target.value)}
+                placeholder="http://localhost:9308"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Scoped Collector Tenancy
+              </label>
+              <Input
+                value={activeCollector}
+                onChange={(e) => setActiveCollector(e.target.value)}
+                placeholder="default (leave blank for unscoped root)"
+                className="font-mono text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Routes queries to <code>/collectors/{activeCollector || "{id}"}/lql/query</code>
+              </p>
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleTestCollector}
+              disabled={collectorTest.testing}
+              className="w-full gap-1.5"
+            >
+              {collectorTest.testing ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Activity className="h-3.5 w-3.5" />
+              )}
+              {collectorTest.testing ? "Testing Collector..." : "Test Collector Ping"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Cortex Intelligence Card */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <div className="h-7 w-7 rounded-md bg-purple-500/10 flex items-center justify-center text-purple-400">
+                  <BrainCircuit className="h-4 w-4" />
+                </div>
+                Loza Cortex (:9312)
+              </CardTitle>
+              {cortexTest.tested && (
+                <Badge variant={cortexTest.ok ? "default" : "destructive"} className="text-xs">
+                  {cortexTest.ok ? `${cortexTest.latencyMs}ms` : "Offline"}
+                </Badge>
+              )}
+            </div>
+            <CardDescription className="text-xs">
+              Autonomous incident reconstruction, causal graphs, and topology
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Cortex HTTP URL
+              </label>
+              <Input
+                value={cortexUrl}
+                onChange={(e) => setCortexUrl(e.target.value)}
+                placeholder="http://localhost:9312"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                WebSocket Stream URL
+              </label>
+              <Input
+                value={wsUrl}
+                onChange={(e) => setWsUrl(e.target.value)}
+                placeholder="ws://localhost:9308/ws/tail"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleTestCortex}
+              disabled={cortexTest.testing}
+              className="w-full gap-1.5"
+            >
+              {cortexTest.testing ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <BrainCircuit className="h-3.5 w-3.5" />
+              )}
+              {cortexTest.testing ? "Testing Cortex..." : "Test Cortex Ping"}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tenancy & Environment Card */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <div className="h-7 w-7 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-400">
+              <Layers className="h-4 w-4" />
+            </div>
+            Environment Tenancy & Authentication
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Header injection for multi-tenant isolation (X-Loza-Env & Authorization)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Target Environment
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {(["all", "production", "staging", "dev"] as const).map((env) => (
+                  <Button
+                    key={env}
+                    type="button"
+                    variant={activeEnvironment === env ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveEnvironment(env)}
+                    className="capitalize text-xs"
+                  >
+                    {env}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Key className="h-3.5 w-3.5" />
+                API Token / Bearer Key
+              </label>
+              <Input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="lz_secret_••••••••••••"
+                className="font-mono text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Stored only for this browser session; never written to durable browser storage.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* UI Preferences Card */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <div className="h-7 w-7 rounded-md bg-amber-500/10 flex items-center justify-center text-amber-400">
+              <Palette className="h-4 w-4" />
+            </div>
+            Appearance & Refresh
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Server className="h-3 w-3" />
-              Collector URL
-            </label>
-            <Input
-              value={collectorUrl}
-              onChange={(e) => setCollectorUrl(e.target.value)}
-              placeholder={import.meta.env.VITE_LOZANA_API_URL || "http://localhost:9308"}
-              className="font-mono text-sm focus-visible:ring-primary/30"
-            />
-            <p className="text-[11px] text-muted-foreground/60">
-              The base URL of your Loza Collector HTTP endpoint
-            </p>
-            {error && <p className="text-[11px] text-destructive">{error}</p>}
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Theme
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { mode: "dark" as const, label: "Dark", icon: Moon },
+                  { mode: "light" as const, label: "Light", icon: Sun },
+                  { mode: "system" as const, label: "System", icon: Monitor },
+                ].map(({ mode, label, icon: Icon }) => (
+                  <Button
+                    key={mode}
+                    type="button"
+                    variant={theme === mode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setTheme(mode);
+                      store.setTheme(mode);
+                    }}
+                    className="gap-1.5 text-xs"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Key className="h-3 w-3" />
-              API Key
-            </label>
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="lx_live_..."
-              className="font-mono text-sm focus-visible:ring-primary/30"
-            />
-            <p className="text-[11px] text-muted-foreground/60">
-              Optional authentication key for secured collectors
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleSave}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
-            >
-              {saved ? (
-                <>
-                  <Check className="h-4 w-4 mr-1.5" />
-                  Saved
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-1.5" />
-                  Save Settings
-                </>
-              )}
-            </Button>
-            {saved && (
-              <span className="text-xs text-primary animate-in fade-in duration-200">
-                Settings saved
-              </span>
-            )}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Auto-Refresh Interval
+              </label>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[
+                  { value: 0, label: "Off" },
+                  { value: 5, label: "5s" },
+                  { value: 15, label: "15s" },
+                  { value: 30, label: "30s" },
+                  { value: 60, label: "1m" },
+                ].map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={autoRefreshInterval === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAutoRefreshInterval(value)}
+                    className="text-xs"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* -- Appearance ---------------------------------------------------- */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-[#FFF1F1]/10 flex items-center justify-center">
-              <Palette className="h-3.5 w-3.5 text-[#FFF1F1]" />
-            </div>
-            Appearance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-              Theme
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              <ThemeOption
-                label="Dark"
-                icon={Moon}
-                isActive={theme === "dark"}
-                onClick={() => setTheme("dark")}
-              />
-              <ThemeOption
-                label="Light"
-                icon={Sun}
-                isActive={theme === "light"}
-                onClick={() => setTheme("light")}
-              />
-              <ThemeOption
-                label="System"
-                icon={Monitor}
-                isActive={theme === "system"}
-                onClick={() => setTheme("system")}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground/60">
-              {theme === "system"
-                ? "Follows your operating system preference"
-                : theme === "dark"
-                  ? "Optimized for low-light environments"
-                  : "High-contrast light theme"}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* -- About --------------------------------------------------------- */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-              <Info className="h-3.5 w-3.5 text-primary" />
-            </div>
-            About
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-1">
-            <span className="text-sm text-muted-foreground">Lozana Version</span>
-            <Badge
-              variant="outline"
-              className="text-[10px] font-mono text-primary border-primary/30"
-            >
+      {/* About Lozana */}
+      <Card className="bg-card/50 border-border">
+        <CardContent className="py-4 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            <span>Lozana Wide-Event Observability Suite</span>
+            <Badge variant="outline" className="font-mono text-[10px]">
               v{APP_VERSION}
             </Badge>
           </div>
-          <Separator />
-          <div className="flex items-center justify-between py-1">
-            <span className="text-sm text-muted-foreground">Spec Version</span>
-            <Badge
-              variant="outline"
-              className="text-[10px] font-mono text-accent border-accent/30"
-            >
-              v1
-            </Badge>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between py-1">
-            <span className="text-sm text-muted-foreground">Framework</span>
-            <span className="text-xs font-mono text-muted-foreground">
-              React + Vite + Tailwind
-            </span>
-          </div>
-          <Separator />
-          <p className="text-xs text-muted-foreground/60 pt-2">
-            Lozana is the observability dashboard for Loza wide events.
-            Connect to a Loza Collector to start exploring your system.
-          </p>
+          <span>Loza Ecosystem • Production Ready</span>
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function normalizeCollectorUrl(value: string): string {
-  try {
-    const url = new URL(value.trim());
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return "";
-    }
-    url.hash = "";
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return "";
-  }
 }

@@ -13,17 +13,18 @@ import {
   ListChecks,
   Bell,
   Activity,
+  BrainCircuit,
   Settings,
   X,
   Command,
 } from "lucide-react"
-
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/explore", label: "Explore", icon: Search },
   { href: "/traces", label: "Traces", icon: GitBranch },
   { href: "/errors", label: "Errors", icon: AlertTriangle },
   { href: "/services", label: "Services", icon: Server },
+  { href: "/incidents", label: "Incidents", icon: BrainCircuit },
   { href: "/dashboards", label: "Dashboards", icon: LayoutGrid },
   { href: "/queries", label: "Queries", icon: ListChecks },
   { href: "/alerts", label: "Alerts", icon: Bell },

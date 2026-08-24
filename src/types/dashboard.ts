@@ -1,41 +1,76 @@
+export type PanelType =
+  | "timeseries"
+  | "stat"
+  | "bar"
+  | "pie"
+  | "heatmap"
+  | "gauge"
+  | "table"
+  | "logstream"
+  | "tracelist"
+  | "markdown";
+
 export interface Dashboard {
   id: string;
-  name: string;
+  title: string;
+  name?: string; // alias
   description?: string;
-  panels: Panel[];
+  tags?: string[];
+  timeRange?: string;
   variables: DashboardVariable[];
-  created_at: string;
-  updated_at: string;
+  panels: Panel[];
+  createdAt: string;
+  updatedAt: string;
+  isPreset?: boolean;
+}
+
+export interface PanelPosition {
+  x: number;
+  y: number;
+  w: number; // width in grid units (1-12)
+  h: number; // height in grid units (1-12)
 }
 
 export interface Panel {
   id: string;
   title: string;
-  type: "stat" | "line" | "area" | "bar" | "pie" | "table" | "event-list" | "trace-list" | "heatmap" | "query";
+  description?: string;
+  type: PanelType;
   query: string;
+  content?: string; // For markdown panel
+  position: PanelPosition;
   visualization?: PanelVisualization;
-  position: { x: number; y: number; w: number; h: number };
 }
 
 export interface PanelVisualization {
   xField?: string;
   yField?: string;
   groupBy?: string;
-  unit?: string;
-  thresholds?: Threshold[];
+  unit?: "none" | "ms" | "s" | "bytes" | "kb" | "mb" | "percent" | "req/s" | "count";
   color?: string;
+  chartType?: "line" | "area" | "stacked-bar" | "grouped-bar";
+  thresholds?: Threshold[];
+  sparkline?: boolean;
+  gaugeMin?: number;
+  gaugeMax?: number;
+  decimalPlaces?: number;
+  showLegend?: boolean;
 }
 
 export interface Threshold {
   value: number;
-  color: string;
+  color: string; // e.g. "green" | "yellow" | "red" | "#10b981"
   label?: string;
 }
 
 export interface DashboardVariable {
+  id: string;
   name: string;
+  label?: string;
   type: "query" | "custom" | "textbox";
   query?: string;
   options?: string[];
-  default?: string;
+  defaultValue?: string;
+  currentValue?: string;
+  includeAll?: boolean;
 }
