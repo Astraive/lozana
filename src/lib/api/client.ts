@@ -15,7 +15,7 @@ export function getCollectorUrl(): string {
     // fallback outside react context
   }
   return (
-    (typeof window !== "undefined" ? localStorage.getItem("loza-collector-url") : null) ||
+    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-collector-url") : null) ||
     (import.meta.env.VITE_LOZANA_API_URL as string) ||
     "http://localhost:9308"
   );
@@ -29,7 +29,7 @@ export function getCortexUrl(): string {
     // fallback
   }
   return (
-    (typeof window !== "undefined" ? localStorage.getItem("loza-cortex-url") : null) ||
+    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-cortex-url") : null) ||
     (import.meta.env.VITE_CORTEX_URL as string) ||
     "http://localhost:9312"
   );
@@ -43,7 +43,7 @@ export function getWebSocketUrl(): string {
     // fallback outside react context
   }
   return (
-    (typeof window !== "undefined" ? localStorage.getItem("loza-ws-url") : null) ||
+    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-ws-url") : null) ||
     (import.meta.env.VITE_WS_URL as string) ||
     "ws://localhost:9308/ws/tail"
   );
@@ -72,7 +72,7 @@ export function getApiKey(): string {
   } catch {
     // fallback
   }
-  return (typeof window !== "undefined" ? sessionStorage.getItem("loza-api-key") : null) || "";
+  return (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("loza-api-key") : null) || "";
 }
 
 /**
