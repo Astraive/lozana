@@ -117,9 +117,9 @@ describe("WebSocket tail contract", () => {
   });
 
   it("transports credentials in a non-echoed WebSocket subprotocol", () => {
-    expect(buildWebSocketProtocols("lx_sec_live_key")).toEqual([
+    expect(buildWebSocketProtocols("lz_sec_live_key")).toEqual([
       "loza.tail.v1",
-      "loza.auth.v1.bHhfc2VjX2xpdmVfa2V5",
+      "loza.auth.v1.bHpfc2VjX2xpdmVfa2V5",
     ]);
     expect(buildWebSocketProtocols("")).toEqual(["loza.tail.v1"]);
   });
