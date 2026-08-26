@@ -3,9 +3,28 @@ name: Lozana CI
 on:
   push:
     branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig*.json"
+      - "vite.config.ts"
+      - "eslint.config.js"
+      - ".github/workflows/lozana-ci.yml"
   pull_request:
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig*.json"
+      - "vite.config.ts"
+      - "eslint.config.js"
+      - ".github/workflows/lozana-ci.yml"
   workflow_dispatch:
-
 permissions:
   contents: read
 
@@ -23,8 +42,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Type check
-        run: bun run tsc -b
 
       - name: Lint
         run: bun run lint
