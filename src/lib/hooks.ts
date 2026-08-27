@@ -19,11 +19,12 @@ export function useQueryEvents(
   parameters: Record<string, { type?: string; value: unknown }> = {},
   limit = 1000,
   enabled = true,
+  connection?: string,
 ) {
-  const queryKey = useScopedQueryKey("events", "lql", query, parameters, limit);
+  const queryKey = useScopedQueryKey("events", "lql", query, parameters, limit, connection);
   return useQuery<QueryResult>({
     queryKey,
-    queryFn: () => queryLqlEvents(query, parameters, limit),
+    queryFn: () => queryLqlEvents(query, parameters, limit, connection),
     enabled: enabled && query.trim().length > 0,
     staleTime: 30_000,
   });
@@ -141,10 +142,12 @@ export function useLqlQuery() {
       query,
       parameters = {},
       limit = 1000,
+      connection,
     }: {
       query: string;
       parameters?: Record<string, { type?: string; value: unknown }>;
       limit?: number;
-    }) => queryLqlEvents(query, parameters, limit),
+      connection?: string;
+    }) => queryLqlEvents(query, parameters, limit, connection),
   });
 }

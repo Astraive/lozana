@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type * as MonacoType from "monaco-editor";
-import { LqlQueryError } from "@/lib/api/events";
+import { LqlQueryError, listDatabaseConnections } from "@/lib/api/events";
 import { useQueryEvents } from "@/lib/hooks";
 import { useQueryStore } from "@/stores/query.store";
 import { useAppStore } from "@/stores/app.store";
@@ -53,7 +53,7 @@ export default function ExplorePage() {
 function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { theme } = useAppStore();
+  const { theme, activeDatabaseConnection, setActiveDatabaseConnection } = useAppStore();
 
   const {
     tabs,
@@ -84,9 +84,17 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
 
   const editorRef = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
 
-  // TanStack Query for execution
-  const queryResult = useQueryEvents(submittedQuery, {}, 1000, queryEnabled);
-
+  const [databaseConnections, setDatabaseConnections] = useState<{ name: string; backend: string }[]>([]);
+  useEffect(() => {
+    listDatabaseConnections().then(setDatabaseConnections).catch(() => setDatabaseConnections([]));
+  }, []);
+  const queryResult = useQueryEvents(
+    submittedQuery,
+    {},
+    1000,
+    queryEnabled,
+    activeDatabaseConnection || undefined
+  );
   // Keep the active tab aligned with a query supplied by navigation.
   useEffect(() => {
     if (urlQuery && urlQuery !== activeQuery) {
@@ -356,6 +364,19 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
             </div>
 
             <div className="flex items-center justify-between pt-1">
+                <select
+                  aria-label="Database connection"
+                  value={activeDatabaseConnection}
+                  onChange={(event) => setActiveDatabaseConnection(event.target.value)}
+                  className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                >
+                  <option value="">Primary connection</option>
+                  {databaseConnections.map((connection) => (
+                    <option key={connection.name} value={connection.name}>
+                      {connection.name} ({connection.backend})
+                    </option>
+                  ))}
+                </select>
               <div className="flex items-center gap-3">
                 <Button
                   onClick={handleExecute}

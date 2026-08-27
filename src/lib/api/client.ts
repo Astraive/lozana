@@ -91,6 +91,7 @@ export function resolveCollectorPath(path: string): string {
   // Scoped routes
   if (
     path.startsWith("/lql/query") ||
+    path.startsWith("/database") ||
     path.startsWith("/schema") ||
     path.startsWith("/status") ||
     path.startsWith("/events") ||

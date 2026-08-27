@@ -13,8 +13,9 @@ export interface AppState {
   apiKey: string;
   activeCollector: string;
   activeEnvironment: Environment;
+  activeDatabaseConnection: string;
   queryScopeRevision: number;
-
+  connectionStateRevision: number;
   // UI & Preferences
   theme: ThemeMode;
   autoRefreshInterval: number; // 0 = off, seconds
@@ -28,6 +29,7 @@ export interface AppState {
   setApiKey: (key: string) => void;
   setActiveCollector: (collector: string) => void;
   setActiveEnvironment: (env: Environment) => void;
+  setActiveDatabaseConnection: (connection: string) => void;
   setTheme: (theme: ThemeMode) => void;
   setAutoRefreshInterval: (seconds: number) => void;
   toggleSidebar: () => void;
@@ -63,7 +65,6 @@ const DEFAULT_API_KEY = (() => {
   localStorage.removeItem("loza-api-key");
   return sessionKey;
 })();
-
 type PersistedAppState = Pick<
   AppState,
   | "collectorUrl"
@@ -71,12 +72,12 @@ type PersistedAppState = Pick<
   | "wsUrl"
   | "activeCollector"
   | "activeEnvironment"
+  | "activeDatabaseConnection"
   | "theme"
   | "autoRefreshInterval"
   | "sidebarCollapsed"
   | "timeRange"
 >;
-
 export function selectPersistedAppState(state: AppState): PersistedAppState {
   return {
     collectorUrl: state.collectorUrl,
@@ -84,13 +85,13 @@ export function selectPersistedAppState(state: AppState): PersistedAppState {
     wsUrl: state.wsUrl,
     activeCollector: state.activeCollector,
     activeEnvironment: state.activeEnvironment,
+    activeDatabaseConnection: state.activeDatabaseConnection,
     theme: state.theme,
     autoRefreshInterval: state.autoRefreshInterval,
     sidebarCollapsed: state.sidebarCollapsed,
     timeRange: state.timeRange,
   };
 }
-
 export function migratePersistedAppState(persistedState: unknown): PersistedAppState {
   const state =
     persistedState && typeof persistedState === "object"
@@ -102,6 +103,7 @@ export function migratePersistedAppState(persistedState: unknown): PersistedAppS
     wsUrl: state.wsUrl ?? DEFAULT_WS_URL,
     activeCollector: state.activeCollector ?? "",
     activeEnvironment: state.activeEnvironment ?? "all",
+    activeDatabaseConnection: state.activeDatabaseConnection ?? "",
     theme: state.theme ?? "dark",
     autoRefreshInterval: state.autoRefreshInterval ?? 0,
     sidebarCollapsed: state.sidebarCollapsed ?? false,
@@ -118,7 +120,9 @@ export const useAppStore = create<AppState>()(
       apiKey: DEFAULT_API_KEY,
       activeCollector: "",
       activeEnvironment: "all",
+      activeDatabaseConnection: "",
       queryScopeRevision: 0,
+      connectionStateRevision: 0,
       theme: "dark",
       autoRefreshInterval: 0,
       sidebarCollapsed: false,
@@ -173,6 +177,15 @@ export const useAppStore = create<AppState>()(
         removeScopeQueries();
         set((state) => ({ activeEnvironment, queryScopeRevision: state.queryScopeRevision + 1 }));
       },
+      setActiveDatabaseConnection: (activeDatabaseConnection) => {
+        if (get().activeDatabaseConnection === activeDatabaseConnection) return;
+        removeScopeQueries();
+        set((state) => ({
+          activeDatabaseConnection,
+          queryScopeRevision: state.queryScopeRevision + 1,
+          connectionStateRevision: state.connectionStateRevision + 1,
+        }));
+      },
       setTheme: (theme) => set({ theme }),
       setAutoRefreshInterval: (autoRefreshInterval) => set({ autoRefreshInterval }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -192,7 +205,8 @@ export const useAppStore = create<AppState>()(
           current.cortexUrl !== "http://localhost:9312" ||
           current.apiKey !== "" ||
           current.activeCollector !== "" ||
-          current.activeEnvironment !== "all";
+          current.activeEnvironment !== "all" ||
+          current.activeDatabaseConnection !== "";
         if (scopeChanged) removeScopeQueries();
         set({
           collectorUrl: "http://localhost:9308",
@@ -201,13 +215,16 @@ export const useAppStore = create<AppState>()(
           apiKey: "",
           activeCollector: "",
           activeEnvironment: "all",
+          activeDatabaseConnection: "",
           queryScopeRevision: current.queryScopeRevision + Number(scopeChanged),
+          connectionStateRevision:
+            current.connectionStateRevision + Number(current.activeDatabaseConnection !== ""),
         });
       },
     }),
     {
       name: "loza-app-store",
-      version: 1,
+      version: 2,
       partialize: selectPersistedAppState,
       migrate: migratePersistedAppState,
     }

@@ -1,6 +1,11 @@
-import { postJSON } from "./client";
+import { postJSON, fetchJSON } from "./client";
 import { ApiError } from "./errors";
 import type { QueryResult } from "@/types/event";
+import type {
+  DatabaseConnectionSummary,
+  DatabaseConnectionTestResult,
+  DatabaseQueryResult,
+} from "@/types/api";
 import { lqlStringLiteral } from "@/lib/lql/query-contract";
 
 export interface LqlQueryValue {
@@ -49,19 +54,23 @@ export async function queryEvents(sql: string): Promise<QueryResult> {
     duration_ms: result.duration_ms,
   };
 }
-
-/** Execute LQL source; this endpoint never accepts client-produced SQL. */
 export async function queryLqlEvents(
   query: string,
   parameters: Record<string, LqlQueryValue> = {},
   limit = 1000,
+  connection?: string,
 ): Promise<QueryResult> {
   try {
-    const result = await postJSON<{ columns?: string[]; rows?: Record<string, unknown>[]; duration_ms?: number }>("/lql/query", {
+    const body: Record<string, unknown> = {
       query,
       parameters,
       limit: normalizeLimit(limit, 1000),
-    });
+    };
+    if (connection) body.connection = connection;
+    const result = await postJSON<{ columns?: string[]; rows?: Record<string, unknown>[]; duration_ms?: number }>(
+      "/lql/query",
+      body
+    );
     return {
       columns: result.columns || [],
       rows: result.rows || [],
@@ -78,6 +87,37 @@ export async function queryLqlEvents(
     }
     throw error;
   }
+}
+
+export async function listDatabaseConnections(): Promise<DatabaseConnectionSummary[]> {
+  const result = await fetchJSON<{ connections?: DatabaseConnectionSummary[] }>(
+    "/database/connections"
+  );
+  return result.connections || [];
+}
+
+export async function testDatabaseConnection(
+  name: string
+): Promise<DatabaseConnectionTestResult> {
+  return postJSON<DatabaseConnectionTestResult>(
+    `/database/connections/${encodeURIComponent(name)}/test`,
+    {}
+  );
+}
+
+export async function queryDatabase(
+  query: string,
+  parameters: Record<string, LqlQueryValue> = {},
+  limit = 1000,
+  connection?: string
+): Promise<DatabaseQueryResult> {
+  const body: Record<string, unknown> = {
+    query,
+    parameters,
+    limit: normalizeLimit(limit, 1000),
+  };
+  if (connection) body.connection = connection;
+  return postJSON<DatabaseQueryResult>("/database/query", body);
 }
 
 export async function getTraceEvents(traceId: string): Promise<QueryResult> {

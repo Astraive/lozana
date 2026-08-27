@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/components/layout/theme-provider";
 import { useAppStore } from "@/stores/app.store";
 import { testCollectorConnection, testCortexConnection } from "@/lib/api/client";
-import { APP_VERSION } from "@/lib/version";
+import {
+  listDatabaseConnections,
+  testDatabaseConnection,
+} from "@/lib/api/events";
+import type { DatabaseConnectionSummary } from "@/types/api";
 import {
   Key,
   Server,
@@ -23,6 +27,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { APP_VERSION } from "@/lib/version";
 
 interface ConnectionTestState {
   testing: boolean;
@@ -64,6 +69,27 @@ export default function SettingsPage() {
     latencyMs: 0,
     status: 0,
   });
+
+  const [databaseConnections, setDatabaseConnections] = useState<DatabaseConnectionSummary[]>([]);
+  const [databaseLoading, setDatabaseLoading] = useState(false);
+  const [databaseTest, setDatabaseTest] = useState<Record<string, ConnectionTestState>>({});
+  useEffect(() => {
+    let cancelled = false;
+    setDatabaseLoading(true);
+    listDatabaseConnections()
+      .then((connections) => {
+        if (!cancelled) setDatabaseConnections(connections);
+      })
+      .catch(() => {
+        if (!cancelled) setDatabaseConnections([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDatabaseLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [store.collectorUrl, store.activeCollector, store.activeEnvironment]);
 
   const [cortexTest, setCortexTest] = useState<ConnectionTestState>({
     testing: false,
@@ -107,6 +133,40 @@ export default function SettingsPage() {
       toast.success(`Cortex online (${result.latencyMs}ms)`);
     } else {
       toast.error(`Cortex connection failed: ${result.error || "Offline"}`);
+    }
+  };
+
+  const handleTestDatabase = async (name: string) => {
+    setDatabaseTest((state) => ({
+      ...state,
+      [name]: { testing: true, tested: false, ok: false, latencyMs: 0, status: 0 },
+    }));
+    const started = performance.now();
+    try {
+      const result = await testDatabaseConnection(name);
+      setDatabaseTest((state) => ({
+        ...state,
+        [name]: {
+          testing: false,
+          tested: true,
+          ok: result.healthy,
+          latencyMs: result.duration_ms,
+          status: result.healthy ? 200 : 503,
+          error: result.error,
+        },
+      }));
+    } catch (error) {
+      setDatabaseTest((state) => ({
+        ...state,
+        [name]: {
+          testing: false,
+          tested: true,
+          ok: false,
+          latencyMs: Math.round(performance.now() - started),
+          status: 0,
+          error: error instanceof Error ? error.message : "Connection test failed",
+        },
+      }));
     }
   };
 
@@ -218,6 +278,58 @@ export default function SettingsPage() {
               )}
               {collectorTest.testing ? "Testing Collector..." : "Test Collector Ping"}
             </Button>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border md:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <div className="h-7 w-7 rounded-md bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <Layers className="h-4 w-4" />
+              </div>
+              Database Connections
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Collector-managed DuckDB, PostgreSQL, and ClickHouse targets. Credentials stay server-side.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {databaseLoading && <p className="text-sm text-muted-foreground">Loading connections...</p>}
+            {!databaseLoading && databaseConnections.length === 0 && (
+              <p className="text-sm text-muted-foreground">No configured database connections.</p>
+            )}
+            {databaseConnections.map((connection) => {
+              const test = databaseTest[connection.name];
+              return (
+                <div key={connection.name} className="flex flex-wrap items-center gap-3 rounded-md border border-border p-3">
+                  <input
+                    type="radio"
+                    name="active-database-connection"
+                    checked={store.activeDatabaseConnection === connection.name}
+                    onChange={() => store.setActiveDatabaseConnection(connection.name)}
+                  />
+                  <div className="min-w-48 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{connection.name}</span>
+                      <Badge variant="outline" className="text-xs">{connection.backend}</Badge>
+                      {connection.primary && <Badge className="text-xs">Primary</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {connection.path || [connection.host, connection.port].filter(Boolean).join(":") || "server-managed"}
+                      {connection.database ? ` · ${connection.database}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant={connection.health === "healthy" ? "default" : "secondary"}>{connection.health}</Badge>
+                  {test?.tested && (
+                    <span className="text-xs text-muted-foreground">
+                      {test.ok ? `${test.latencyMs}ms` : test.error || `HTTP ${test.status}`}
+                    </span>
+                  )}
+                  <Button size="sm" variant="secondary" onClick={() => handleTestDatabase(connection.name)} disabled={test?.testing}>
+                    {test?.testing ? "Testing..." : "Test"}
+                  </Button>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 

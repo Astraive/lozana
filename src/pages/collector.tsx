@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCollectorHealth } from "@/lib/hooks";
+import { listDatabaseConnections } from "@/lib/api/events";
+import { useAppStore } from "@/stores/app.store";
 import { LiveTailView } from "@/components/live/LiveTailView";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +27,11 @@ export default function CollectorPage() {
   const [activeTab, setActiveTab] = useState<"health" | "livetail">("livetail");
   const health = useCollectorHealth();
   const d = health.data;
-
+  const app = useAppStore();
+  const [connections, setConnections] = useState<{ name: string; backend: string; health: string; primary: boolean }[]>([]);
+  useEffect(() => {
+    listDatabaseConnections().then(setConnections).catch(() => setConnections([]));
+  }, [app.collectorUrl, app.activeCollector, app.activeEnvironment]);
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
@@ -143,7 +149,7 @@ export default function CollectorPage() {
                 Active Storage Sinks
               </CardTitle>
               <CardDescription className="text-xs">
-                Backend storage sinks receiving batched wide events (DuckDB, Parquet, Kafka)
+                Collector-managed database connections (DuckDB, PostgreSQL, ClickHouse)
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-1">
@@ -187,6 +193,26 @@ export default function CollectorPage() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-semibold">Database Connections</CardTitle>
+              <CardDescription className="text-xs">Sanitized Collector connection health</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-1">
+              {connections.length === 0 ? (
+                <p className="py-4 text-center text-xs text-muted-foreground">No configured connections.</p>
+              ) : (
+                <div className="space-y-2">
+                  {connections.map((connection) => (
+                    <div key={connection.name} className="flex items-center justify-between rounded border border-border/60 px-3 py-2 text-xs">
+                      <span className="font-mono">{connection.name} <span className="text-muted-foreground">({connection.backend})</span></span>
+                      <Badge variant={connection.health === "healthy" ? "default" : "secondary"}>{connection.primary ? "primary · " : ""}{connection.health}</Badge>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>

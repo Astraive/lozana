@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fetchJSON, postJSON, resolveCollectorPath, getCollectorUrl, getCortexUrl } from "@/lib/api/client";
+import { listDatabaseConnections, queryDatabase } from "@/lib/api/events";
 import { queryClient, scopedQueryKey } from "@/lib/query-client";
 import {
   migratePersistedAppState,
@@ -28,6 +29,7 @@ describe("API Client & Scoped Routing", () => {
 
   it("resolves unscoped path when no active collector is set", () => {
     expect(resolveCollectorPath("/lql/query")).toBe("/lql/query");
+    expect(resolveCollectorPath("/database/connections")).toBe("/database/connections");
     expect(resolveCollectorPath("/schema")).toBe("/schema");
     expect(resolveCollectorPath("/status")).toBe("/status");
   });
@@ -36,6 +38,7 @@ describe("API Client & Scoped Routing", () => {
     useAppStore.setState({ activeCollector: "edge-us-east" });
 
     expect(resolveCollectorPath("/lql/query")).toBe("/collectors/edge-us-east/lql/query");
+    expect(resolveCollectorPath("/database/query")).toBe("/collectors/edge-us-east/database/query");
     expect(resolveCollectorPath("/schema")).toBe("/collectors/edge-us-east/schema");
     expect(resolveCollectorPath("/status")).toBe("/collectors/edge-us-east/status");
     expect(resolveCollectorPath("/tail")).toBe("/collectors/edge-us-east/tail");
@@ -90,6 +93,27 @@ describe("API Client & Scoped Routing", () => {
     const postHeaders = new Headers(fetchMock.mock.calls[1]?.[1]?.headers);
     expect(getHeaders.has("Content-Type")).toBe(false);
     expect(postHeaders.get("Content-Type")).toBe("application/json");
+  });
+
+  it("uses scoped database endpoints and never serializes credentials", async () => {
+    useAppStore.setState({ activeCollector: "edge-us-east", activeDatabaseConnection: "analytics" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ connections: [{ name: "analytics", backend: "postgres", capabilities: [], enabled: true, primary: true, health: "healthy" }] }),
+    } as Response);
+    const connections = await listDatabaseConnections();
+    expect(connections[0]?.name).toBe("analytics");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/collectors/edge-us-east/database/connections");
+    expect(JSON.stringify(connections)).not.toContain("password");
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ connection: "analytics", backend: "postgres", columns: [], rows: [], row_count: 0, duration_ms: 1 }),
+    } as Response);
+    await queryDatabase("from events | take 1", {}, 1, "analytics");
+    const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(body.connection).toBe("analytics");
+    expect(body.dsn).toBeUndefined();
   });
 
   it("removes reusable abort signal listeners after a completed request", async () => {
