@@ -1,10 +1,9 @@
-# Lozana 0.3.0
+# Lozana 0.3.1
 
 ## Highlights
 
-- Adds Collector-managed database connection summaries and protected connectivity tests.
-- Persists only the selected database connection name; credentials remain session/server-side.
-- Adds historical LQL query selection for DuckDB, PostgreSQL, and ClickHouse Collector targets.
+- Verifies named PostgreSQL and ClickHouse Collector connections in CI.
+- Keeps selected database connection state nonsecret and Collector-scoped.
 
 Lozana remains a private package. Release verification uses `bun install --frozen-lockfile`,
 `bun run lint`, `bun run build`, and `bun run test`.
