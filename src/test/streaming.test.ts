@@ -428,6 +428,14 @@ describe("Safe regex filters", () => {
       "(a{1,3})+$",
       "(a|aaa)+$",
       "(ab|abcd)+$",
+      // Semantic overlaps: classes/shorthands overlap literals, and case
+      // folding under the `i` flag makes a and A equivalent.
+      "([ab]|a)+$",
+      "(a|[ab])+$",
+      "(\\w|a)+$",
+      "(a|\\w)+$",
+      "(a|[a-c])+$",
+      "(a|A)+$",
     ]) {
       expect(isPotentiallyUnsafeRegex(pattern)).toBe(true);
       expect(compileSafeRegex(pattern).error).toMatch(/complex/i);
