@@ -22,9 +22,19 @@ Lozana connects to these Loza backend services:
 
 ## Configuration
 
-Lozana uses Vite environment variables for configuration. Set via `.env` file or runtime env vars.
+Lozana is a Vite single-page application: `VITE_` variables are inlined into the JavaScript
+bundle **at build time**. They cannot be changed with `docker run -e` or `--env-file`, and must
+never hold secrets because the bundle is public.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_LOZANA_API_URL` | Collector HTTP API URL | `http://localhost:9308` |
+| `VITE_LOZANA_WS_URL` | Collector WebSocket URL | `ws://localhost:9308` |
+| `VITE_CORTEX_URL` | Cortex HTTP API URL | `http://localhost:9312` |
 
 ### .env file (not committed)
+
+For local development, copy `.env.example` to `.env`:
 
 ```bash
 VITE_LOZANA_API_URL=http://localhost:9308
@@ -39,25 +49,30 @@ LOZA_API_KEY=
 
 ### Docker
 
-Mount a `.env` file or pass env vars directly:
+Pass build arguments to bake the endpoints into the image:
 
 ```bash
-# With .env file
-docker run -p 3000:8080 \
-  --env-file .env \
-  ghcr.io/astraive/lozana:latest
-
-# With env vars
-docker run -p 3000:8080 \
-  -e VITE_LOZANA_API_URL=http://collector:9308 \
-  -e VITE_LOZANA_WS_URL=ws://collector:9308 \
-  -e VITE_CORTEX_URL=http://cortex:9312 \
-  ghcr.io/astraive/lozana:latest
+docker build -t lozana \
+  --build-arg VITE_LOZANA_API_URL=http://collector:9308 \
+  --build-arg VITE_LOZANA_WS_URL=ws://collector:9308 \
+  --build-arg VITE_CORTEX_URL=http://cortex:9312 \
+  .
+docker run -p 8080:8080 lozana
 ```
 
-### Custom config file
+### Runtime overrides (no rebuild)
 
-Lozana is a Vite SPA — configuration is embedded at build time via `VITE_*` env vars. For runtime configuration, use the `.env` file approach above.
+Endpoints entered in the Settings page are stored in the browser and take precedence over the
+baked-in defaults, so a deployed container can be reconfigured without a rebuild:
+
+```bash
+docker run -p 8080:8080 ghcr.io/astraive/lozana:latest
+# Open http://localhost:8080/settings and set the URLs / API key.
+```
+
+The API key is never read from the environment; it is held only in `sessionStorage`.
+
+Run `bun run check:env` to verify that these documented variables match the ones used by the code.
 
 ## Deprecated Ports
 

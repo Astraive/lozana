@@ -13,6 +13,8 @@
     "preview": "vite preview",
     "lint": "node scripts/eslint-ts6-loader.cjs src/",
     "test": "vitest --run"
+    "test": "vitest --run --passWithNoTests",
+    "check:env": "node scripts/check-env-vars.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

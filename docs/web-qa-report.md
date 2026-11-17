@@ -335,6 +335,7 @@ No runtime console errors detected in code review. All components handle loading
 | GET /ready | Not used | Dead endpoint config |
 
 All API calls go through `lib/api/client.ts`, which adds an `Authorization: Bearer` header from the session-scoped key entered in Settings. Collector credentials are never read from `VITE_*` env vars: the dev proxy injects the server-only `LOZA_API_KEY` header in the Node process (see `vite.config.ts`), and production deployments must do the same at their reverse proxy.
+All API calls go through `lib/api/client.ts`, which adds the Authorization header from the API key entered in the Settings page (held in `sessionStorage`). No API key is read from the environment.
 
 ## Zustand Stores Analysis
 
