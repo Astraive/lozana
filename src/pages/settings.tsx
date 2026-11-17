@@ -102,7 +102,7 @@ export default function SettingsPage() {
 
   const handleTestCollector = async () => {
     setCollectorTest((s) => ({ ...s, testing: true, tested: false }));
-    const result = await testCollectorConnection();
+    const result = await testCollectorConnection(collectorUrl);
     setCollectorTest({
       testing: false,
       tested: true,
@@ -120,7 +120,7 @@ export default function SettingsPage() {
 
   const handleTestCortex = async () => {
     setCortexTest((s) => ({ ...s, testing: true, tested: false }));
-    const result = await testCortexConnection();
+    const result = await testCortexConnection(cortexUrl);
     setCortexTest({
       testing: false,
       tested: true,

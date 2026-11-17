@@ -365,14 +365,15 @@ export async function postCortexJSON<T>(path: string, body: unknown): Promise<T>
   });
 }
 
-export async function testCollectorConnection(): Promise<{
+export async function testCollectorConnection(urlOverride?: string): Promise<{
   ok: boolean;
   status: number;
   latencyMs: number;
   error?: string;
 }> {
   const start = performance.now();
-  const baseUrl = getCollectorUrl().replace(/\/+$/, "");
+  // An explicit (unsaved draft) URL takes precedence over the saved setting.
+  const baseUrl = (urlOverride?.trim() || getCollectorUrl()).replace(/\/+$/, "");
   try {
     const res = await fetch(`${baseUrl}/health`, {
       method: "GET",
@@ -397,14 +398,15 @@ export async function testCollectorConnection(): Promise<{
   }
 }
 
-export async function testCortexConnection(): Promise<{
+export async function testCortexConnection(urlOverride?: string): Promise<{
   ok: boolean;
   status: number;
   latencyMs: number;
   error?: string;
 }> {
   const start = performance.now();
-  const baseUrl = getCortexUrl().replace(/\/+$/, "");
+  // An explicit (unsaved draft) URL takes precedence over the saved setting.
+  const baseUrl = (urlOverride?.trim() || getCortexUrl()).replace(/\/+$/, "");
   try {
     // Try healthz or root
     const res = await fetch(`${baseUrl}/healthz`, {

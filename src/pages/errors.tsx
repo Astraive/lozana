@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useErrorEvents } from "@/lib/hooks";
+import { errorMessage } from "@/lib/page-logic";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,7 +177,16 @@ export default function ErrorsPage() {
           </h3>
         </div>
 
-        {filteredGroups.length === 0 ? (
+        {errorQuery.isLoading ? (
+          <div className="p-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl bg-card/40">
+            Loading error events…
+          </div>
+        ) : errorQuery.isError ? (
+          <div role="alert" className="p-12 text-center text-xs border border-destructive/30 rounded-xl bg-destructive/[0.05]">
+            <p className="font-semibold text-destructive">Failed to load error events</p>
+            <p className="mt-1 text-muted-foreground">{errorMessage(errorQuery.error)}</p>
+          </div>
+        ) : filteredGroups.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl bg-card/40">
             No error groups matching search query.
           </div>

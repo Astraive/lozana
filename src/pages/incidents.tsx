@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { reconstructIncident, getIncidentGraph } from "@/lib/api/cortex";
+import { isLatestRequest } from "@/lib/page-logic";
 import { IncidentWorkbench } from "@/components/cortex/IncidentWorkbench";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,6 @@ export default function IncidentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const urlIncidentId = searchParams.get("incident_id")?.trim() ?? "";
-  const [syncedIncidentId, setSyncedIncidentId] = useState(urlIncidentId);
   const [incidentIdInput, setIncidentIdInput] = useState(urlIncidentId);
   const [reconstruction, setReconstruction] = useState<CortexReconstruction | null>(null);
   const [graph, setGraph] = useState<IncidentGraph | null>(null);
@@ -23,6 +23,9 @@ export default function IncidentsPage() {
   const [mode, setMode] = useState<"fast" | "deep">("fast");
   const modeRef = useRef(mode);
   const requestGuardRef = useRef(new RequestGuard());
+  // Incremented for every request (and on navigation) so late responses from a
+  // superseded request cannot overwrite the current view.
+  const requestIdRef = useRef(0);
 
   const loadIncident = useCallback((
     targetId: string,
@@ -30,35 +33,41 @@ export default function IncidentsPage() {
   ) => {
     const guard = requestGuardRef.current;
     const token = guard.begin();
+    const requestId = ++requestIdRef.current;
     void Promise.all([
       reconstructIncident(targetId, targetMode),
       getIncidentGraph(targetId),
     ])
       .then(([recData, graphData]) => {
         if (!guard.isCurrent(token)) return;
+        if (!isLatestRequest(requestId, requestIdRef.current)) return;
         setReconstruction(recData);
         setGraph(graphData);
         toast.success("Incident reconstructed by Cortex");
       })
       .catch(() => {
         if (!guard.isCurrent(token)) return;
+        if (!isLatestRequest(requestId, requestIdRef.current)) return;
         setError(true);
         toast.error("Cortex could not reconstruct this incident");
       })
       .finally(() => {
         if (!guard.isCurrent(token)) return;
+        if (!isLatestRequest(requestId, requestIdRef.current)) return;
         setLoading(false);
       });
   }, []);
 
-  if (syncedIncidentId !== urlIncidentId) {
-    setSyncedIncidentId(urlIncidentId);
+  // Reset state in an effect instead of during render when navigation changes
+  // the incident id. Invalidate any in-flight request so its result is ignored.
+  useEffect(() => {
+    requestIdRef.current += 1;
     setIncidentIdInput(urlIncidentId);
     setReconstruction(null);
     setGraph(null);
     setLoading(Boolean(urlIncidentId));
     setError(false);
-  }
+  }, [urlIncidentId]);
 
   const startReconstruction = (
     targetId: string,
