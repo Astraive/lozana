@@ -102,4 +102,16 @@ describe("error boundary", () => {
     expect(shouldResetErrorBoundary(child, { type: "span" }, "a", "a")).toBe(true);
     expect(shouldResetErrorBoundary(child, child, "a", "b")).toBe(true);
   });
+
+  it("resets on route change even when children are referentially stable", () => {
+    // App renders <Suspense><Routes/></Suspense> as a stable element reference;
+    // only the router-derived resetKey changes on navigation.
+    const stableChildren = { type: "Suspense" };
+    expect(
+      shouldResetErrorBoundary(stableChildren, stableChildren, "/overview", "/explore")
+    ).toBe(true);
+    expect(
+      shouldResetErrorBoundary(stableChildren, stableChildren, "/explore", "/explore")
+    ).toBe(false);
+  });
 });

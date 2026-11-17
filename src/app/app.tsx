@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/layout/theme-provider";
@@ -27,12 +27,20 @@ function PageLoader() {
   );
 }
 
+// `App` itself is outside the route elements, so its `children` reference is
+// stable across navigation. Derive the reset key from the router location so
+// the boundary actually clears when the user changes routes.
+function RoutedErrorBoundary({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+}
+
 export default function App() {
   return (
     <Providers>
       <ThemeProvider>
         <AppShell>
-          <ErrorBoundary>
+          <RoutedErrorBoundary>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<OverviewPage />} />
@@ -49,7 +57,7 @@ export default function App() {
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
-          </ErrorBoundary>
+          </RoutedErrorBoundary>
         </AppShell>
         <Toaster />
       </ThemeProvider>
