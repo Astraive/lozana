@@ -1,7 +1,7 @@
 # Lozana — Dashboard and analytics UI for Loza
 # Multi-stage: build with bun, serve with nginx
 
-FROM oven/bun:alpine AS build
+FROM oven/bun:alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS build
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -10,7 +10,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
-FROM nginx:alpine
+FROM nginx:alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72
 
 # Run nginx as non-root
 RUN addgroup -g 10001 lozana && \
@@ -18,22 +18,9 @@ RUN addgroup -g 10001 lozana && \
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# SPA fallback — route all requests to index.html
-RUN printf 'server {\n\
-  listen 8080;\n\
-  server_name _;\n\
-  root /usr/share/nginx/html;\n\
-  index index.html;\n\
-\n\
-  location / {\n\
-    try_files $uri $uri/ /index.html;\n\
-  }\n\
-\n\
-  location /assets {\n\
-    expires 1y;\n\
-    add_header Cache-Control "public, immutable";\n\
-  }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# Serve the SPA with hardened nginx configuration (CSP and other headers).
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY nginx/security-headers.conf /etc/nginx/security-headers.conf
 
 # Fix permissions for non-root
 RUN chown -R lozana:lozana /usr/share/nginx/html && \
