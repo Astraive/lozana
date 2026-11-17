@@ -102,16 +102,16 @@ describe("API key getter", () => {
       clear(): void {
         throw new Error("blocked");
       },
-      getItem(_key: string): string | null {
+      getItem(): string | null {
         throw new Error("blocked");
       },
-      key(_index: number): string | null {
+      key(): string | null {
         throw new Error("blocked");
       },
-      removeItem(_key: string): void {
+      removeItem(): void {
         throw new Error("blocked");
       },
-      setItem(_key: string, _value: string): void {
+      setItem(): void {
         throw new Error("blocked");
       },
     } as Storage;
