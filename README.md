@@ -66,6 +66,15 @@ Server-only variables (never exposed to the browser):
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LOZA_API_KEY` | Collector API key injected by the Vite dev proxy as `Authorization: Bearer …` | (empty) |
+| `VITE_CORTEX_URL` | Cortex API URL | `http://localhost:9312` |
+| `VITE_WS_URL` | WebSocket URL | `ws://localhost:9308/ws/tail` |
+| `VITE_LOZA_API_KEY` | API key for collector auth | (empty) |
+| `VITE_LOZANA_ALLOWED_ORIGINS` | Comma-separated allowlist of non-loopback API origins | (empty) |
+
+The plaintext defaults are for localhost-only development. Non-loopback
+endpoints must use `https://` / `wss://` and be either same-origin or listed in
+`VITE_LOZANA_ALLOWED_ORIGINS`. Credentials are sent only as bearer headers over
+validated HTTP(S) endpoints - never in WebSocket subprotocols.
 
 See `.env.example` for reference.
 

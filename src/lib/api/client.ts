@@ -1,5 +1,6 @@
 import { ApiError } from "./errors";
 import { readStoredValue } from "../storage";
+import { validateEndpointUrl, type EndpointPurpose } from "./endpoint-policy";
 import { useAppStore } from "@/stores/app.store";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -89,6 +90,25 @@ function resolveBaseUrl(
       return url.replace(/\/+$/, "");
     } catch {
       // Reject malformed or untrusted configured URLs.
+/**
+ * Pick the first configured URL that passes policy. Values from localStorage
+ * (or persisted store state) are untrusted, so an invalid entry is discarded
+ * instead of being used as a request target.
+ */
+function resolveEndpoint(
+  candidates: readonly (string | null | undefined)[],
+  fallback: string,
+  purpose: EndpointPurpose
+): string {
+  const requireTls = Boolean(getApiKey());
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const url = candidate.trim();
+    try {
+      validateEndpointUrl(url, { purpose, requireTls });
+      return url;
+    } catch {
+      // Reject unsafe or malformed configuration.
     }
   }
   return fallback;
@@ -121,6 +141,14 @@ export function getCollectorUrl(): string {
     readStoredValue("loza-collector-url") ||
     (import.meta.env.VITE_LOZANA_API_URL as string) ||
     "http://localhost:9308"
+  return resolveEndpoint(
+    [
+      storeUrl,
+      typeof localStorage !== "undefined" ? localStorage.getItem("loza-collector-url") : null,
+      import.meta.env.VITE_LOZANA_API_URL as string,
+    ],
+    "http://localhost:9308",
+    "http"
   );
 }
 
@@ -141,13 +169,21 @@ export function getCortexUrl(): string {
     readStoredValue("loza-cortex-url") ||
     (import.meta.env.VITE_CORTEX_URL as string) ||
     "http://localhost:9312"
+  return resolveEndpoint(
+    [
+      storeUrl,
+      typeof localStorage !== "undefined" ? localStorage.getItem("loza-cortex-url") : null,
+      import.meta.env.VITE_CORTEX_URL as string,
+    ],
+    "http://localhost:9312",
+    "http"
   );
 }
 
 export function getWebSocketUrl(): string {
+  let storeUrl: string | null = null;
   try {
-    const storeUrl = useAppStore.getState().wsUrl;
-    if (storeUrl) return storeUrl;
+    storeUrl = useAppStore.getState().wsUrl;
   } catch {
     // fallback outside react context
   }
@@ -155,6 +191,14 @@ export function getWebSocketUrl(): string {
     readStoredValue("loza-ws-url") ||
     (import.meta.env.VITE_WS_URL as string) ||
     "ws://localhost:9308/ws/tail"
+  return resolveEndpoint(
+    [
+      storeUrl,
+      typeof localStorage !== "undefined" ? localStorage.getItem("loza-ws-url") : null,
+      import.meta.env.VITE_WS_URL as string,
+    ],
+    "ws://localhost:9308/ws/tail",
+    "websocket"
   );
 }
 
@@ -251,6 +295,14 @@ function attachBearer(headers: Headers, token: string, baseUrl: string): void {
 function buildCollectorHeaders(baseUrl: string, init?: RequestInit): Headers {
   const headers = buildBaseHeaders(init);
   attachBearer(headers, getApiKey(), baseUrl);
+  const key = getApiKey();
+  if (key) {
+    // A bearer credential must never be attached to a plaintext remote URL.
+    validateEndpointUrl(getCollectorUrl(), { purpose: "http", requireTls: true });
+    validateEndpointUrl(getCortexUrl(), { purpose: "http", requireTls: true });
+    validateEndpointUrl(getWebSocketUrl(), { purpose: "websocket", requireTls: true });
+    headers.set("Authorization", `Bearer ${key}`);
+  }
 
   const env = getActiveEnvironment();
   if (env && env !== "all") {
