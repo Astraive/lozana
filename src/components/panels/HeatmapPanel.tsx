@@ -1,59 +1,14 @@
 import { PanelWrapper } from "./PanelWrapper";
+import { buildHeatmapData } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
+
+export { buildHeatmapData } from "@/lib/panel-math";
 
 interface HeatmapPanelProps {
   panel: Panel;
   onEdit?: (panel: Panel) => void;
   onDelete?: (panelId: string) => void;
   onDuplicate?: (panelId: string) => void;
-}
-
-interface HeatmapData {
-  xLabels: string[];
-  yLabels: string[];
-  values: Map<string, number>;
-  maxValue: number;
-}
-
-const X_FIELDS = ["x", "time", "timestamp", "bin_timestamp", "time_bucket", "bucket_time"];
-const Y_FIELDS = ["y", "bucket", "duration_bucket", "latency_bucket", "series"];
-const VALUE_FIELDS = ["value", "count", "count_", "event_count"];
-
-function firstPresent(row: Record<string, unknown>, fields: string[]): unknown {
-  for (const field of fields) {
-    if (row[field] !== undefined && row[field] !== null) return row[field];
-  }
-  return undefined;
-}
-
-export function buildHeatmapData(rows: Record<string, unknown>[]): HeatmapData | null {
-  const xLabels: string[] = [];
-  const yLabels: string[] = [];
-  const values = new Map<string, number>();
-  let maxValue = 0;
-
-  for (const row of rows) {
-    const rawX = firstPresent(row, X_FIELDS);
-    const rawY = firstPresent(row, Y_FIELDS);
-    const rawValue = firstPresent(row, VALUE_FIELDS);
-    if ((typeof rawX !== "string" && typeof rawX !== "number") ||
-        (typeof rawY !== "string" && typeof rawY !== "number") ||
-        (typeof rawValue !== "string" && typeof rawValue !== "number")) return null;
-
-    const x = String(rawX);
-    const y = String(rawY);
-    const value = Number(rawValue);
-    if (!x || !y || !Number.isFinite(value) || value < 0) return null;
-
-    const key = `${y}\u0000${x}`;
-    if (values.has(key)) return null;
-    values.set(key, value);
-    if (!xLabels.includes(x)) xLabels.push(x);
-    if (!yLabels.includes(y)) yLabels.push(y);
-    maxValue = Math.max(maxValue, value);
-  }
-
-  return { xLabels, yLabels, values, maxValue };
 }
 
 export function HeatmapPanel({ panel, onEdit, onDelete, onDuplicate }: HeatmapPanelProps) {
