@@ -45,6 +45,13 @@ bun run build
 
 Output is in `dist/`.
 
+## Docker
+
+```bash
+docker build -t lozana .
+docker run -p 8080:8080 lozana
+```
+
 ## Configuration
 
 Client variables (prefix `VITE_`). These are embedded in the browser bundle at build time, so never put secrets in them:

@@ -103,6 +103,9 @@ node_modules/
 vite.config.ts.timestamp-*
 vite.config.js.timestamp-*
 
+# Vitest JSON report consumed by scripts/check-test-count.cjs
+.vitest-results.json
+
 *.tsbuildinfo
 
 # =============================================================================

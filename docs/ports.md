@@ -6,9 +6,8 @@
 
 | Port | Context | Config |
 |------|---------|--------|
-| 3000 | Dev server (Vite) | `PORT` env var |
-| 80 | Production (nginx) | Dockerfile / nginx.conf |
-| 8080 | Docker production | Dockerfile EXPOSE |
+| 3000 | Dev server (Vite) | `server.port` in vite.config.ts |
+| 8080 | Production container (nginx) | `listen 8080` / `EXPOSE 8080` in Dockerfile |
 
 ## Backend Connections
 
@@ -68,6 +67,17 @@ baked-in defaults, so a deployed container can be reconfigured without a rebuild
 ```bash
 docker run -p 8080:8080 ghcr.io/astraive/lozana:latest
 # Open http://localhost:8080/settings and set the URLs / API key.
+# With .env file
+docker run -p 8080:8080 \
+  --env-file .env \
+  ghcr.io/astraive/lozana:latest
+
+# With env vars
+docker run -p 8080:8080 \
+  -e VITE_LOZANA_API_URL=http://collector:9308 \
+  -e VITE_LOZANA_WS_URL=ws://collector:9308 \
+  -e VITE_CORTEX_URL=http://cortex:9312 \
+  ghcr.io/astraive/lozana:latest
 ```
 
 The API key is never read from the environment; it is held only in `sessionStorage`.
