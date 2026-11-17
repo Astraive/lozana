@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { LiveStreamClient, type StreamStats, type StreamConnectionStatus } from "@/lib/api/streaming";
+import { compileSafeRegex, testRegexSafely } from "@/lib/api/safe-regex";
 import { EventDetailDrawer } from "@/components/explorer/EventDetailDrawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
   ArrowDown,
   Highlighter,
   Zap,
+  RotateCw,
 } from "lucide-react";
 import type { LozaEvent } from "@/types/event";
 
@@ -35,6 +37,7 @@ export function LiveTailView() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
+  const filtersInitialized = useRef(false);
 
   // Initialize client lifecycle
   useEffect(() => {
@@ -62,13 +65,20 @@ export function LiveTailView() {
     };
   }, [client]);
 
-  // Update client filters when changed
+  // Update client filters when changed. Server-side filters (service/level)
+  // are baked into the stream URL, so a changed filter requires reconnecting.
   useEffect(() => {
     client.setFilters({
       service: serviceFilter || undefined,
       level: levelFilter || undefined,
       searchRegex: searchRegex || undefined,
     });
+    if (!filtersInitialized.current) {
+      // The lifecycle effect above already opened the initial connection.
+      filtersInitialized.current = true;
+      return;
+    }
+    client.reconnect();
   }, [client, serviceFilter, levelFilter, searchRegex]);
 
   // Auto-scroll to bottom when new events arrive
@@ -102,15 +112,8 @@ export function LiveTailView() {
       return { displayRegex: null, searchRegexError: null };
     }
 
-    try {
-      return { displayRegex: new RegExp(searchRegex, "i"), searchRegexError: null };
-    } catch (error) {
-      return {
-        displayRegex: null,
-        searchRegexError:
-          error instanceof Error ? error.message : "Invalid regular expression",
-      };
-    }
+    const { regex, error } = compileSafeRegex(searchRegex);
+    return { displayRegex: regex, searchRegexError: error };
   }, [searchRegex]);
 
   // Filter events locally for display
@@ -118,7 +121,7 @@ export function LiveTailView() {
     return events.filter((evt) => {
       if (serviceFilter && evt.service !== serviceFilter) return false;
       if (levelFilter && evt.level !== levelFilter) return false;
-      if (displayRegex && !displayRegex.test(JSON.stringify(evt))) return false;
+      if (displayRegex && !testRegexSafely(displayRegex, JSON.stringify(evt))) return false;
       return true;
     });
   }, [events, serviceFilter, levelFilter, displayRegex]);
@@ -165,6 +168,18 @@ export function LiveTailView() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {(status === "disconnected" || status === "error") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => client.reconnect()}
+                className="h-7 text-xs gap-1.5"
+              >
+                <RotateCw className="h-3 w-3" />
+                Reconnect
+              </Button>
+            )}
+
             <Button
               variant={isPaused ? "default" : "outline"}
               size="sm"
@@ -271,7 +286,7 @@ export function LiveTailView() {
             <Activity className="h-8 w-8 animate-pulse text-muted-foreground/50" />
             <p className="text-xs">Waiting for live wide events to stream from Collector (:9308)...</p>
             <span className="text-[10px] text-muted-foreground/60 font-mono">
-              Endpoint: /tail (NDJSON)
+              Endpoint: /ws/tail (WebSocket)
             </span>
           </div>
         ) : (

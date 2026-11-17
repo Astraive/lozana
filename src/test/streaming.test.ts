@@ -6,6 +6,11 @@ import {
   buildWebSocketProtocols,
   type StreamStats,
 } from "@/lib/api/streaming";
+import {
+  compileSafeRegex,
+  isPotentiallyUnsafeRegex,
+  MAX_REGEX_PATTERN_LENGTH,
+} from "@/lib/api/safe-regex";
 import { useAppStore } from "@/stores/app.store";
 
 describe("Streaming RingBuffer", () => {
@@ -354,6 +359,107 @@ describe("WebSocket tail contract", () => {
     );
 
     expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-valid"]);
+    client.disconnect();
+  });
+
+  it("manual reconnect works after exhausting automatic retries", () => {
+    const pending: Array<() => void> = [];
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn((fn: () => void) => {
+        pending.push(fn);
+        return pending.length;
+      }),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+
+    // Drop the connection and run each scheduled retry until the backoff limit
+    // is exhausted.
+    for (let i = 0; i < 20 && client.getStatus() !== "disconnected"; i++) {
+      const sockets = FakeWebSocket.instances;
+      sockets[sockets.length - 1].closeFromServer();
+      pending.pop()?.();
+    }
+
+    expect(client.getStatus()).toBe("disconnected");
+    const socketsBefore = FakeWebSocket.instances.length;
+
+    // An explicit reconnect clears the exhausted counter and opens a socket.
+    client.reconnect();
+    expect(client.getStatus()).toBe("connecting");
+    expect(FakeWebSocket.instances.length).toBe(socketsBefore + 1);
+
+    // A subsequent failure must schedule another retry, not stay dead.
+    const socketsAfter = FakeWebSocket.instances;
+    socketsAfter[socketsAfter.length - 1].closeFromServer();
+    expect(client.getStatus()).toBe("reconnecting");
+    expect(pending.length).toBe(1);
+
+    client.disconnect();
+  });
+});
+
+describe("Safe regex filters", () => {
+  it("accepts ordinary patterns and reports invalid ones", () => {
+    const { regex, error } = compileSafeRegex("error|warn");
+    expect(error).toBeNull();
+    expect(regex?.test("WARN")).toBe(true);
+    expect(compileSafeRegex("[").error).toMatch(/regular expression/i);
+  });
+
+  it("rejects catastrophic-backtracking and oversized patterns", () => {
+    expect(isPotentiallyUnsafeRegex("(a+)+$")).toBe(true);
+    expect(isPotentiallyUnsafeRegex("(a|aa)+$")).toBe(true);
+    expect(isPotentiallyUnsafeRegex("([a-zA-Z]+)*$")).toBe(true);
+    expect(compileSafeRegex("(a+)+$").error).toMatch(/complex/i);
+    expect(compileSafeRegex("a".repeat(MAX_REGEX_PATTERN_LENGTH + 1)).error).toMatch(/too long/i);
+  });
+
+  it("does not flag common benign patterns as unsafe", () => {
+    expect(isPotentiallyUnsafeRegex("(?:error|warn)+")).toBe(false);
+    expect(isPotentiallyUnsafeRegex(".*timeout.*")).toBe(false);
+    expect(isPotentiallyUnsafeRegex("^\\d{2,4}$")).toBe(false);
+  });
+
+  it("rejects an unsafe regex via setFilters without dropping events", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+
+    expect(client.setFilters({ searchRegex: "(a+)+$" })).toMatch(/complex/i);
+    socket.message(
+      JSON.stringify({
+        event_id: "evt-ok",
+        timestamp: "2026-08-24T04:12:00Z",
+        message: "aaaaaaaaaaaaaaaaaaaa",
+      })
+    );
+
+    expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-ok"]);
     client.disconnect();
   });
 });
