@@ -96,22 +96,22 @@ describe("API key getter", () => {
 
   it("never throws when storage access is blocked", () => {
     const blocked = {
-      get length() {
+      get length(): number {
         throw new Error("blocked");
       },
-      clear() {
+      clear(): void {
         throw new Error("blocked");
       },
-      getItem() {
+      getItem(_key: string): string | null {
         throw new Error("blocked");
       },
-      key() {
+      key(_index: number): string | null {
         throw new Error("blocked");
       },
-      removeItem() {
+      removeItem(_key: string): void {
         throw new Error("blocked");
       },
-      setItem() {
+      setItem(_key: string, _value: string): void {
         throw new Error("blocked");
       },
     } as Storage;
