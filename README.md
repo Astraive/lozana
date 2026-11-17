@@ -126,6 +126,19 @@ Cortex is a **separate trust domain** with its own optional API token, also
 configured on `/settings`. The collector token and collector tenancy headers are
 never forwarded to Cortex: Cortex requests carry only their own credential (if
 set), `Content-Type`, and `X-Request-Id`.
+## Token storage policy
+
+Bearer tokens (API keys / session tokens) must never be written to `localStorage`,
+where any script on the page can read them and they persist after the tab is closed.
+
+- The API key is kept in `sessionStorage` only (`src/stores/app.store.ts`), which is
+  scoped to the current tab and cleared when it closes. Any legacy `localStorage`
+  copy is removed on load.
+- Session data (`src/lib/auth/session.ts`) is likewise stored only in
+  `sessionStorage`. `getSession()` fails closed: a session with a missing, malformed,
+  or past `expiresAt` is rejected and removed. Tokens are never written to
+  `localStorage`.
+- Non-secret preferences (URLs, theme, layout) may remain in `localStorage`.
 
 ## Routes
 
