@@ -5,6 +5,7 @@ import {
   buildTailWebSocketUrl,
   buildWebSocketProtocols,
   type StreamStats,
+  shouldReconnectForFilters,
 } from "@/lib/api/streaming";
 import {
   compileSafeRegex,
@@ -418,10 +419,19 @@ describe("Safe regex filters", () => {
   });
 
   it("rejects catastrophic-backtracking and oversized patterns", () => {
-    expect(isPotentiallyUnsafeRegex("(a+)+$")).toBe(true);
-    expect(isPotentiallyUnsafeRegex("(a|aa)+$")).toBe(true);
-    expect(isPotentiallyUnsafeRegex("([a-zA-Z]+)*$")).toBe(true);
-    expect(compileSafeRegex("(a+)+$").error).toMatch(/complex/i);
+    for (const pattern of [
+      "(a+)+$",
+      "(a|aa)+$",
+      "([a-zA-Z]+)*$",
+      // Regression cases from review: bounded quantifier nested in a
+      // quantified group, and longer overlapping alternations.
+      "(a{1,3})+$",
+      "(a|aaa)+$",
+      "(ab|abcd)+$",
+    ]) {
+      expect(isPotentiallyUnsafeRegex(pattern)).toBe(true);
+      expect(compileSafeRegex(pattern).error).toMatch(/complex/i);
+    }
     expect(compileSafeRegex("a".repeat(MAX_REGEX_PATTERN_LENGTH + 1)).error).toMatch(/too long/i);
   });
 
@@ -553,6 +563,30 @@ describe("NDJSON tail contract", () => {
 
 describe("Live stream buffer capacity stats", () => {
   it("exposes configured capacity separately from the live buffer size and updates it reactively", () => {
+describe("Filter-change reconnect", () => {
+  it("reconnects only when server-side filters change", () => {
+    const initial = { service: undefined, level: undefined };
+    expect(shouldReconnectForFilters(null, initial)).toBe(false); // initial mount
+    expect(shouldReconnectForFilters(initial, { service: "checkout" })).toBe(true);
+    expect(
+      shouldReconnectForFilters(
+        { service: "checkout", level: undefined },
+        { service: "checkout", level: "error" }
+      )
+    ).toBe(true);
+    expect(
+      shouldReconnectForFilters({ service: "checkout", level: "error" }, { service: "checkout", level: "error" })
+    ).toBe(false);
+    // searchRegex is client-only, so changing it must not reconnect.
+    expect(
+      shouldReconnectForFilters(
+        { service: "checkout", level: "error", searchRegex: "err" },
+        { service: "checkout", level: "error", searchRegex: "warn" }
+      )
+    ).toBe(false);
+  });
+
+  it("applies changed server filters to a freshly opened stream", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
       clearInterval: vi.fn(),
@@ -597,6 +631,24 @@ describe("Live stream buffer capacity stats", () => {
     // setCapacity emits stats, so a bound React component re-renders with the new value.
     expect(emitted[emitted.length - 1]?.bufferCapacity).toBe(5000);
 
+    const client = new LiveStreamClient();
+    let applied: Parameters<typeof shouldReconnectForFilters>[0] = null;
+    client.connect(true);
+
+    // Mirror LiveTailView's filter effect: the first application records the
+    // baseline without reconnecting; a later change reopens the stream.
+    const initial = { service: "checkout" };
+    client.setFilters(initial);
+    applied = initial;
+
+    const next = { service: "billing", level: "error" };
+    client.setFilters(next);
+    if (shouldReconnectForFilters(applied, next)) client.reconnect();
+    applied = next;
+
+    expect(FakeWebSocket.instances.length).toBe(2);
+    expect(FakeWebSocket.instances[1].url).toContain("service=billing");
+    expect(FakeWebSocket.instances[1].url).toContain("level=error");
     client.disconnect();
   });
 });

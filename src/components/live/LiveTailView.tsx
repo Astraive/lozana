@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { LiveStreamClient, type StreamStats, type StreamConnectionStatus } from "@/lib/api/streaming";
+import {
+  LiveStreamClient,
+  shouldReconnectForFilters,
+  type StreamFilterOptions,
+  type StreamStats,
+  type StreamConnectionStatus,
+} from "@/lib/api/streaming";
 import { compileSafeRegex, testRegexSafely } from "@/lib/api/safe-regex";
 import { EventDetailDrawer } from "@/components/explorer/EventDetailDrawer";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +43,7 @@ export function LiveTailView() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const filtersInitialized = useRef(false);
+  const appliedFilters = useRef<StreamFilterOptions | null>(null);
 
   // Initialize client lifecycle
   useEffect(() => {
@@ -66,19 +72,18 @@ export function LiveTailView() {
   }, [client]);
 
   // Update client filters when changed. Server-side filters (service/level)
-  // are baked into the stream URL, so a changed filter requires reconnecting.
+  // are baked into the stream URL, so only those changes reopen the stream.
   useEffect(() => {
-    client.setFilters({
+    const filters: StreamFilterOptions = {
       service: serviceFilter || undefined,
       level: levelFilter || undefined,
       searchRegex: searchRegex || undefined,
-    });
-    if (!filtersInitialized.current) {
-      // The lifecycle effect above already opened the initial connection.
-      filtersInitialized.current = true;
-      return;
+    };
+    client.setFilters(filters);
+    if (shouldReconnectForFilters(appliedFilters.current, filters)) {
+      client.reconnect();
     }
-    client.reconnect();
+    appliedFilters.current = filters;
   }, [client, serviceFilter, levelFilter, searchRegex]);
 
   // Auto-scroll to bottom when new events arrive

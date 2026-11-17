@@ -26,6 +26,20 @@ export interface StreamFilterOptions {
   searchRegex?: string;
 }
 
+/**
+ * Server-side filters (service/level) are baked into the stream URL, so only
+ * changes to those require reopening the connection. `searchRegex` is applied
+ * client-side and never sent to the server. `null` means the initial mount,
+ * where the lifecycle effect has already opened the stream.
+ */
+export function shouldReconnectForFilters(
+  previous: StreamFilterOptions | null,
+  next: StreamFilterOptions
+): boolean {
+  if (previous === null) return false;
+  return previous.service !== next.service || previous.level !== next.level;
+}
+
 export interface StreamStats {
   eventsReceived: number;
   eventsPerSecond: number;
