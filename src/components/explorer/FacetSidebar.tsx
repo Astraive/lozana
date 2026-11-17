@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import type { LozaEvent } from "@/types/event";
+import { isLqlIdentifier } from "@/lib/lql/query-contract";
 
 interface FacetValue {
   value: string;
@@ -86,6 +87,9 @@ export function FacetSidebar({
       if (evt.attrs && typeof evt.attrs === "object") {
         for (const [attrKey, attrVal] of Object.entries(evt.attrs as Record<string, unknown>)) {
           const fullKey = `attrs.${attrKey}`;
+          // Only expose keys that are valid LQL identifiers: an attr key containing
+          // e.g. a pipe could otherwise be interpolated into a pipeline stage.
+          if (!isLqlIdentifier(fullKey)) continue;
           if (!counts[fullKey]) counts[fullKey] = {};
           if (attrVal !== undefined && attrVal !== null && attrVal !== "") {
             const strVal = String(attrVal);

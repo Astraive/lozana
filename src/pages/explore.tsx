@@ -11,6 +11,7 @@ import { registerLqlLanguage, LQL_LANGUAGE_ID } from "@/lib/lql/monaco-lql";
 import { registerLqlCompletionProvider } from "@/lib/lql/completion-provider";
 import { resolveUrlQuerySync } from "@/lib/url-query-sync";
 import { resolveMetricValue } from "@/lib/timeseries-data";
+import { buildLqlWhere, buildLqlCountBy } from "@/lib/lql/query-contract";
 import { VisualQueryBuilder } from "@/components/lql/VisualQueryBuilder";
 import { QuerySnippetsDrawer } from "@/components/lql/QuerySnippetsDrawer";
 import { QueryHistoryDrawer } from "@/components/lql/QueryHistoryDrawer";
@@ -174,8 +175,13 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
 
   // Filter injection from Facet Sidebar
   const handleAddFilterFromFacet = (field: string, operator: "=" | "!=", value: string) => {
-    const isNum = !isNaN(Number(value)) && value.trim() !== "";
-    const filterClause = `where ${field} ${operator} ${isNum ? value : `"${value}"`}`;
+    let filterClause: string;
+    try {
+      filterClause = buildLqlWhere(field, operator, value);
+    } catch (error) {
+      toast.error(`Cannot add filter: ${error instanceof Error ? error.message : "invalid field"}`);
+      return;
+    }
     const newQuery = `${activeQuery.trim()} | ${filterClause}`;
     updateActiveTabQuery(newQuery);
     if (editorRef.current) {
@@ -185,7 +191,14 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
   };
 
   const handleGroupByFromFacet = (field: string) => {
-    const newQuery = `${activeQuery.trim()} | summarize count() by ${field}`;
+    let groupByStage: string;
+    try {
+      groupByStage = buildLqlCountBy(field);
+    } catch (error) {
+      toast.error(`Cannot group by: ${error instanceof Error ? error.message : "invalid field"}`);
+      return;
+    }
+    const newQuery = `${activeQuery.trim()} | ${groupByStage}`;
     updateActiveTabQuery(newQuery);
     if (editorRef.current) {
       editorRef.current.setValue(newQuery);

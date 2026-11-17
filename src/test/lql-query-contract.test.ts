@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildServiceExploreQuery, buildVisualLql, lqlStringLiteral, parseVisualLql, type VisualQueryState } from "@/lib/lql/query-contract";
+import {
+  buildVisualLql,
+  buildLqlCountBy,
+  buildLqlServiceFilter,
+  buildLqlWhere,
+  isLqlIdentifier,
+  lqlStringLiteral,
+  type VisualQueryState,
+} from "@/lib/lql/query-contract";
 
 const baseState: VisualQueryState = {
   source: "events",
@@ -219,5 +228,58 @@ describe("parseVisualLql (visual builder initialQuery)", () => {
     expect(parseVisualLql("this is not LQL | take ???").limit).toBe(100);
     expect(parseVisualLql('from events | where service = "unterminated').filters).toEqual([]);
     expect(parseVisualLql("from events | where 1 == 1 | take 50000").limit).toBe(10_000);
+  });
+});
+
+describe("LQL clause builders reject injection payloads", () => {
+  // Returns the bytes between the first and last quote of a clause's literal,
+  // i.e. the region a payload must stay confined to.
+  function literalOf(clause: string): string {
+    return clause.slice(clause.indexOf('"'), clause.lastIndexOf('"') + 1);
+  }
+
+  it("escapes a quote payload so it cannot close the literal and add a stage", () => {
+    const payload = 'payment" | take 999';
+    const clause = buildLqlServiceFilter(payload);
+    const query = `from events | ${clause} | sort timestamp desc | limit 100`;
+
+    expect(query).toBe('from events | where service = "payment\\" | take 999" | sort timestamp desc | limit 100');
+    expect(clause.startsWith('where service = "')).toBe(true);
+    expect(clause.endsWith('"')).toBe(true);
+    expect(literalOf(clause)).toContain("| take 999");
+  });
+
+  it("rejects pipe payloads when a field is interpolated into where/summarize", () => {
+    expect(() => buildLqlWhere("service | take 999", "=", "api")).toThrow("invalid LQL identifier");
+    expect(() => buildLqlCountBy("service | take 999")).toThrow("invalid LQL identifier");
+    expect(() => buildLqlCountBy('attrs.foo" | summarize count()')).toThrow("invalid LQL identifier");
+
+    expect(isLqlIdentifier("attrs.region")).toBe(true);
+    expect(isLqlIdentifier("attrs.region|take 1")).toBe(false);
+    expect(isLqlIdentifier("attrs.region\n| take 1")).toBe(false);
+  });
+
+  it("keeps a pipe payload inside the quoted value literal", () => {
+    const clause = buildLqlWhere("service", "=", "a | take 999 | ");
+    expect(clause).toBe('where service = "a | take 999 | "');
+    expect(literalOf(clause)).toContain("| take 999");
+  });
+
+  it("cannot turn a newline payload into a separate pipeline stage", () => {
+    const payload = "svc\n| take 999";
+    const clause = buildLqlServiceFilter(payload);
+    // Newline/control-char escaping itself is tracked in LOZ-SEC-003; this
+    // assertion guarantees the payload stays inside the single quoted literal.
+    expect(clause).toBe('where service = "svc\n| take 999"');
+    expect(clause.startsWith('where service = "')).toBe(true);
+    expect(clause.endsWith('"')).toBe(true);
+    expect(literalOf(clause)).toContain("| take 999");
+  });
+
+  it("escapes backslash payloads so a preceding quote cannot be unescaped", () => {
+    const clause = buildLqlWhere("message", "=", 'a\\b"c');
+    expect(clause).toBe('where message = "a\\\\b\\"c"');
+    expect(clause.startsWith('where message = "')).toBe(true);
+    expect(clause.endsWith('"')).toBe(true);
   });
 });

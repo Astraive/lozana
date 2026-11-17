@@ -112,6 +112,30 @@ function lqlValue(value: string): string {
   return NUMBER.test(trimmed) ? trimmed : lqlStringLiteral(value);
 }
 
+/**
+ * Build a `where <field> <operator> <value>` stage from untrusted input.
+ * The field is validated as an identifier and the value is always rendered
+ * through the LQL literal escaper, so a quoted value cannot close its literal
+ * and append further pipeline stages.
+ */
+export function buildLqlWhere(field: string, operator: QueryOperator, value: string): string {
+  return `where ${requireIdentifier(field)} ${operator} ${lqlValue(value)}`;
+}
+
+/**
+ * Build a `summarize count() by <field>` stage with a validated group-by field.
+ */
+export function buildLqlCountBy(field: string): string {
+  return `summarize count() by ${requireIdentifier(field)}`;
+}
+
+/**
+ * Build a `where service = <literal>` clause with an escaped service name.
+ */
+export function buildLqlServiceFilter(service: string): string {
+  return `where service = ${lqlStringLiteral(service)}`;
+}
+
 export function buildVisualLql(state: VisualQueryState): string {
   const parts = [`from ${requireIdentifier(state.source)}`];
   if (state.timePreset && state.timePreset !== "all") {
