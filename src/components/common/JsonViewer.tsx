@@ -154,6 +154,12 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
         <span
           className="cursor-pointer hover:bg-primary/10 rounded px-0.5 select-none transition-colors"
           onClick={() => setIsExpanded(!isExpanded)}
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={`Toggle ${keyName ?? "array"}`}
+          className="inline-flex cursor-pointer items-center rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none transition-colors"
+          onClick={() => setExpanded(!expanded)}
         >
           <SyntaxSpan type="bracket">{isExpanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
           {keyName !== undefined && (
@@ -169,6 +175,9 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
           {!isExpanded && <SyntaxSpan type="bracket">]</SyntaxSpan>}
         </span>
         {isExpanded && (
+          {!expanded && <SyntaxSpan type="bracket">]</SyntaxSpan>}
+        </button>
+        {expanded && (
           <>
             {value.map((item, i) => (
               <JsonNode
@@ -209,6 +218,12 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
         <span
           className="cursor-pointer hover:bg-primary/10 rounded px-0.5 select-none transition-colors"
           onClick={() => setIsExpanded(!isExpanded)}
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={`Toggle ${keyName ?? "object"}`}
+          className="inline-flex cursor-pointer items-center rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none transition-colors"
+          onClick={() => setExpanded(!expanded)}
         >
           <SyntaxSpan type="bracket">{isExpanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
           {keyName !== undefined && (
@@ -224,6 +239,9 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
           {!isExpanded && <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>}
         </span>
         {isExpanded && (
+          {!expanded && <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>}
+        </button>
+        {expanded && (
           <>
             {entries.map(([k, v]) => (
               <JsonNode

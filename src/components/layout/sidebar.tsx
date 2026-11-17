@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/cn"
 import { APP_VERSION } from "@/lib/version"
 import { useCollectorHealth } from "@/lib/hooks"
+import { useCommandMenu } from "@/components/layout/command-menu-context"
 import {
   LayoutDashboard,
   Search,
@@ -40,6 +41,7 @@ interface SidebarProps {
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { pathname } = useLocation()
   const health = useCollectorHealth()
+  const { openMenu } = useCommandMenu()
   const isOnline = health.isSuccess && health.data?.status === "ok"
 
   // Close sidebar on Escape (mobile)
@@ -134,11 +136,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* Bottom status area */}
       <div className="relative shrink-0 border-t border-sidebar-border px-4 py-3">
-        {/* Cmd+K hint */}
+        {/* Cmd+K hint -- opens the shared command menu directly */}
         <button
-          onClick={() => {
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))
-          }}
+          onClick={openMenu}
           className="mb-2 flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Command className="h-3 w-3" />

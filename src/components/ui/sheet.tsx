@@ -1,6 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/cn"
+import { createScrollLock } from "@/lib/ui-utils"
 
 interface SheetContextValue {
   open: boolean
@@ -101,10 +102,10 @@ function SheetContent({ className, side = "right", children, ...props }: SheetCo
     }
     if (open) {
       document.addEventListener("keydown", handleKeyDown)
-      document.body.style.overflow = "hidden"
+      const releaseScrollLock = createScrollLock()
       return () => {
         document.removeEventListener("keydown", handleKeyDown)
-        document.body.style.overflow = ""
+        releaseScrollLock()
       }
     }
   }, [open, setOpen])

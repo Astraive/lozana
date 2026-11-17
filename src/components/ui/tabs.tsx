@@ -1,15 +1,18 @@
 import * as React from "react"
 
 import { cn } from "@/lib/cn"
+import { chainEventHandlers, getArrowKeyIndex } from "@/lib/ui-utils"
 
 interface TabsContextValue {
   value: string
   onValueChange: (value: string) => void
+  baseId: string
 }
 
 const TabsContext = React.createContext<TabsContextValue>({
   value: "",
   onValueChange: () => {},
+  baseId: "tabs",
 })
 
 interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -27,6 +30,7 @@ function Tabs({
   ...props
 }: TabsProps) {
   const [internalValue, setInternalValue] = React.useState(defaultValue)
+  const baseId = React.useId()
   const value =
     controlledValue !== undefined ? controlledValue : internalValue
 
@@ -41,7 +45,7 @@ function Tabs({
   )
 
   return (
-    <TabsContext.Provider value={{ value, onValueChange: handleValueChange }}>
+    <TabsContext.Provider value={{ value, onValueChange: handleValueChange, baseId }}>
       <div className={cn("", className)} {...props}>
         {children}
       </div>
@@ -77,6 +81,23 @@ function TabsTrigger({ className, value, onClick, ...props }: TabsTriggerProps) 
   const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
     onClick?.(event)
     onValueChange(value)
+function TabsTrigger({ className, value, onKeyDown, ...props }: TabsTriggerProps) {
+  const { value: selectedValue, onValueChange, baseId } =
+    React.useContext(TabsContext)
+  const isActive = selectedValue === value
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return
+    e.preventDefault()
+    const tabs = Array.from(
+      e.currentTarget
+        .closest('[role="tablist"]')
+        ?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []
+    )
+    const currentIndex = tabs.indexOf(e.currentTarget)
+    const next = tabs[getArrowKeyIndex(e.key, currentIndex, tabs.length)]
+    next?.focus()
+    next?.click()
   }
 
   return (
@@ -84,7 +105,10 @@ function TabsTrigger({ className, value, onClick, ...props }: TabsTriggerProps) 
       {...props}
       type="button"
       role="tab"
+      id={`${baseId}-tab-${value}`}
+      aria-controls={isActive ? `${baseId}-panel-${value}` : undefined}
       aria-selected={isActive}
+      tabIndex={isActive ? 0 : -1}
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
         isActive && "bg-background text-primary shadow-sm shadow-primary/10 border border-primary/20",
@@ -92,6 +116,9 @@ function TabsTrigger({ className, value, onClick, ...props }: TabsTriggerProps) 
         className
       )}
       onClick={handleClick}
+      onClick={() => onValueChange(value)}
+      onKeyDown={chainEventHandlers(onKeyDown, handleKeyDown)}
+      {...props}
     />
   )
 }
@@ -101,7 +128,7 @@ interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 function TabsContent({ className, value, ...props }: TabsContentProps) {
-  const { value: selectedValue } = React.useContext(TabsContext)
+  const { value: selectedValue, baseId } = React.useContext(TabsContext)
   if (selectedValue !== value) return null
 
   return (
@@ -110,7 +137,10 @@ function TabsContent({ className, value, ...props }: TabsContentProps) {
         "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         className
       )}
+      id={`${baseId}-panel-${value}`}
       role="tabpanel"
+      aria-labelledby={`${baseId}-tab-${value}`}
+      tabIndex={0}
       {...props}
     />
   )
