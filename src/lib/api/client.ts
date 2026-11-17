@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { readStoredValue } from "../storage";
 import { useAppStore } from "@/stores/app.store";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -116,6 +117,9 @@ export function getCollectorUrl(): string {
       typeof localStorage !== "undefined" ? localStorage.getItem("loza-collector-url") : null,
       import.meta.env.VITE_LOZANA_API_URL as string | undefined,
     ],
+  return (
+    readStoredValue("loza-collector-url") ||
+    (import.meta.env.VITE_LOZANA_API_URL as string) ||
     "http://localhost:9308"
   );
 }
@@ -133,6 +137,9 @@ export function getCortexUrl(): string {
       typeof localStorage !== "undefined" ? localStorage.getItem("loza-cortex-url") : null,
       import.meta.env.VITE_CORTEX_URL as string | undefined,
     ],
+  return (
+    readStoredValue("loza-cortex-url") ||
+    (import.meta.env.VITE_CORTEX_URL as string) ||
     "http://localhost:9312"
   );
 }
@@ -145,7 +152,7 @@ export function getWebSocketUrl(): string {
     // fallback outside react context
   }
   return (
-    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-ws-url") : null) ||
+    readStoredValue("loza-ws-url") ||
     (import.meta.env.VITE_WS_URL as string) ||
     "ws://localhost:9308/ws/tail"
   );
@@ -167,14 +174,18 @@ export function getActiveEnvironment(): string {
   }
 }
 
+/**
+ * Single source of truth for the API key, shared by auth checks and all API
+ * calls. This is a pure read: it never writes to or deletes from storage.
+ */
 export function getApiKey(): string {
   try {
     const storeKey = useAppStore.getState().apiKey;
     if (storeKey) return storeKey;
   } catch {
-    // fallback
+    // Store unavailable (e.g. outside React context / SSR); fall through.
   }
-  return (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("loza-api-key") : null) || "";
+  return readStoredValue("loza-api-key", "session") ?? "";
 }
 
 /**

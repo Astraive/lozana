@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { clearStoredValue, readStoredValue, writeStoredValue } from "@/lib/storage";
 import { removeScopeQueries } from "@/lib/query-client";
 
 export type Environment = "all" | "production" | "staging" | "dev";
@@ -39,32 +40,22 @@ export interface AppState {
 }
 
 const DEFAULT_COLLECTOR_URL =
-  typeof window !== "undefined"
-    ? localStorage.getItem("loza-collector-url") ||
-      (import.meta.env.VITE_LOZANA_API_URL as string) ||
-      "http://localhost:9308"
-    : "http://localhost:9308";
+  readStoredValue("loza-collector-url") ||
+  (import.meta.env.VITE_LOZANA_API_URL as string) ||
+  "http://localhost:9308";
 
 const DEFAULT_CORTEX_URL =
-  typeof window !== "undefined"
-    ? localStorage.getItem("loza-cortex-url") ||
-      (import.meta.env.VITE_CORTEX_URL as string) ||
-      "http://localhost:9312"
-    : "http://localhost:9312";
+  readStoredValue("loza-cortex-url") ||
+  (import.meta.env.VITE_CORTEX_URL as string) ||
+  "http://localhost:9312";
 
 const DEFAULT_WS_URL =
-  typeof window !== "undefined"
-    ? localStorage.getItem("loza-ws-url") ||
-      (import.meta.env.VITE_WS_URL as string) ||
-      "ws://localhost:9308/ws/tail"
-    : "ws://localhost:9308/ws/tail";
+  readStoredValue("loza-ws-url") ||
+  (import.meta.env.VITE_WS_URL as string) ||
+  "ws://localhost:9308/ws/tail";
 
-const DEFAULT_API_KEY = (() => {
-  if (typeof window === "undefined") return "";
-  const sessionKey = sessionStorage.getItem("loza-api-key") || "";
-  localStorage.removeItem("loza-api-key");
-  return sessionKey;
-})();
+// Pure read: initializing the store must never delete a stored key.
+const DEFAULT_API_KEY = readStoredValue("loza-api-key", "session") ?? "";
 type PersistedAppState = Pick<
   AppState,
   | "collectorUrl"
@@ -131,38 +122,31 @@ export const useAppStore = create<AppState>()(
       setCollectorUrl: (url) => {
         const cleanUrl = url.trim().replace(/\/+$/, "");
         if (get().collectorUrl === cleanUrl) return;
-        if (typeof window !== "undefined") {
-          localStorage.setItem("loza-collector-url", cleanUrl);
-        }
+        writeStoredValue("loza-collector-url", cleanUrl);
         removeScopeQueries();
         set((state) => ({ collectorUrl: cleanUrl, queryScopeRevision: state.queryScopeRevision + 1 }));
       },
       setCortexUrl: (url) => {
         const cleanUrl = url.trim().replace(/\/+$/, "");
         if (get().cortexUrl === cleanUrl) return;
-        if (typeof window !== "undefined") {
-          localStorage.setItem("loza-cortex-url", cleanUrl);
-        }
+        writeStoredValue("loza-cortex-url", cleanUrl);
         removeScopeQueries();
         set((state) => ({ cortexUrl: cleanUrl, queryScopeRevision: state.queryScopeRevision + 1 }));
       },
       setWsUrl: (url) => {
         const cleanUrl = url.trim();
-        if (typeof window !== "undefined") {
-          localStorage.setItem("loza-ws-url", cleanUrl);
-        }
+        writeStoredValue("loza-ws-url", cleanUrl);
         set({ wsUrl: cleanUrl });
       },
       setApiKey: (key) => {
         const cleanKey = key.trim();
         if (get().apiKey === cleanKey) return;
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("loza-api-key");
-          if (cleanKey) {
-            sessionStorage.setItem("loza-api-key", cleanKey);
-          } else {
-            sessionStorage.removeItem("loza-api-key");
-          }
+        // Writes may clean up the legacy localStorage key; reads never do.
+        clearStoredValue("loza-api-key");
+        if (cleanKey) {
+          writeStoredValue("loza-api-key", cleanKey, "session");
+        } else {
+          clearStoredValue("loza-api-key", "session");
         }
         removeScopeQueries();
         set((state) => ({ apiKey: cleanKey, queryScopeRevision: state.queryScopeRevision + 1 }));
@@ -192,13 +176,11 @@ export const useAppStore = create<AppState>()(
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       setTimeRange: (timeRange) => set({ timeRange }),
       resetConnectionDefaults: () => {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("loza-collector-url");
-          localStorage.removeItem("loza-cortex-url");
-          localStorage.removeItem("loza-ws-url");
-          localStorage.removeItem("loza-api-key");
-          sessionStorage.removeItem("loza-api-key");
-        }
+        clearStoredValue("loza-collector-url");
+        clearStoredValue("loza-cortex-url");
+        clearStoredValue("loza-ws-url");
+        clearStoredValue("loza-api-key");
+        clearStoredValue("loza-api-key", "session");
         const current = get();
         const scopeChanged =
           current.collectorUrl !== "http://localhost:9308" ||

@@ -1,4 +1,4 @@
-import { getApiKey } from "../env";
+import { getApiKey } from "../api/client";
 
 /**
  * Returns Authorization headers if an API key is configured.
