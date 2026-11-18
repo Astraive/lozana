@@ -8,6 +8,7 @@ import { useQueryStore } from "@/stores/query.store";
 import { useAppStore } from "@/stores/app.store";
 import { registerLqlLanguage, LQL_LANGUAGE_ID } from "@/lib/lql/monaco-lql";
 import { registerLqlCompletionProvider } from "@/lib/lql/completion-provider";
+import { resolveUrlQuerySync } from "@/lib/url-query-sync";
 import { VisualQueryBuilder } from "@/components/lql/VisualQueryBuilder";
 import { QuerySnippetsDrawer } from "@/components/lql/QuerySnippetsDrawer";
 import { QueryHistoryDrawer } from "@/components/lql/QueryHistoryDrawer";
@@ -95,12 +96,21 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
     queryEnabled,
     activeDatabaseConnection || undefined
   );
-  // Keep the active tab aligned with a query supplied by navigation.
+  // Keep the active tab aligned with a query supplied by navigation. Only a
+  // change to `urlQuery` may write to the tab; re-running on `activeQuery`
+  // would overwrite edits made in the editor or a newly switched tab.
+  const lastSyncedUrlQueryRef = useRef<string | null>(null);
   useEffect(() => {
-    if (urlQuery && urlQuery !== activeQuery) {
-      updateActiveTabQuery(urlQuery);
+    const { lastSyncedUrlQuery, queryToApply } = resolveUrlQuerySync({
+      urlQuery,
+      activeQuery: getActiveQuery(),
+      lastSyncedUrlQuery: lastSyncedUrlQueryRef.current,
+    });
+    lastSyncedUrlQueryRef.current = lastSyncedUrlQuery;
+    if (queryToApply !== null) {
+      updateActiveTabQuery(queryToApply);
     }
-  }, [urlQuery, activeQuery, updateActiveTabQuery]);
+  }, [urlQuery, getActiveQuery, updateActiveTabQuery]);
 
   // Execute query handler
   const handleExecute = useCallback(() => {
