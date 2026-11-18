@@ -4,6 +4,7 @@ import {
   LiveStreamClient,
   buildTailWebSocketUrl,
   buildWebSocketProtocols,
+  type StreamStats,
 } from "@/lib/api/streaming";
 import { useAppStore } from "@/stores/app.store";
 
@@ -373,6 +374,56 @@ describe("NDJSON tail contract", () => {
       expect(client.getEvents()).toHaveLength(1);
     });
     expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-only"]);
+    client.disconnect();
+  });
+});
+
+describe("Live stream buffer capacity stats", () => {
+  it("exposes configured capacity separately from the live buffer size and updates it reactively", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+
+    const client = new LiveStreamClient(1000);
+    const emitted: StreamStats[] = [];
+    client.onStats((stats) => emitted.push(stats));
+
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+
+    // Live events make bufferSize diverge from the configured capacity. Before the
+    // fix the capacity selector bound to this live count, matching no <option>.
+    for (let i = 0; i < 3; i++) {
+      socket.message(
+        JSON.stringify({
+          event_id: `evt-${i}`,
+          timestamp: "2026-08-24T04:12:00Z",
+          service: "checkout",
+        })
+      );
+    }
+
+    expect(client.getStats().bufferSize).toBe(3);
+    // The bound value is a real selector option and is not the live event count.
+    expect(client.getStats().bufferCapacity).toBe(1000);
+
+    client.setCapacity(5000);
+    expect(client.getStats().bufferCapacity).toBe(5000);
+    expect(client.getStats().bufferSize).toBe(3);
+    // setCapacity emits stats, so a bound React component re-renders with the new value.
+    expect(emitted[emitted.length - 1]?.bufferCapacity).toBe(5000);
+
     client.disconnect();
   });
 });
