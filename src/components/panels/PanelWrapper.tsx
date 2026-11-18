@@ -23,12 +23,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Panel } from "@/types/dashboard";
 import type { QueryResult } from "@/types/event";
+import { isPanelQueryEnabled } from "./panel-query-enabled";
 
 interface PanelWrapperProps {
   panel: Panel;
   onEdit?: (panel: Panel) => void;
   onDelete?: (panelId: string) => void;
   onDuplicate?: (panelId: string) => void;
+  /** Set to false to stop the panel's event query (e.g. while a log stream is paused). */
+  enabled?: boolean;
   children: (data: QueryResult | undefined, isLoading: boolean, error: Error | null) => React.ReactNode;
 }
 
@@ -37,6 +40,7 @@ export function PanelWrapper({
   onEdit,
   onDelete,
   onDuplicate,
+  enabled = true,
   children,
 }: PanelWrapperProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -44,7 +48,7 @@ export function PanelWrapper({
   const isEditingLayout = useDashboardStore((s) => s.isEditingLayout);
 
   const finalQuery = interpolateQuery(panel.query);
-  const queryResult = useQueryEvents(finalQuery, {}, 500, Boolean(panel.query && panel.type !== "markdown"));
+  const queryResult = useQueryEvents(finalQuery, {}, 500, isPanelQueryEnabled(panel, enabled));
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => !prev);
