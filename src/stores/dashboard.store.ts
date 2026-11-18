@@ -3,6 +3,11 @@ import { persist } from "zustand/middleware";
 import type { Dashboard, Panel } from "@/types/dashboard";
 import { STARTER_PRESETS } from "@/lib/storage/dashboard-storage";
 
+/** Escape a literal string so it can be embedded safely in a RegExp pattern. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 interface DashboardStoreState {
   dashboards: Dashboard[];
   activeDashboardId: string;
@@ -212,17 +217,18 @@ export const useDashboardStore = create<DashboardStoreState>()(
         const vars = get().variableValues;
 
         for (const [key, val] of Object.entries(vars)) {
+          const escapedKey = escapeRegExp(key);
           if (!val || val === "all") {
             // Remove where filters for "all" if appropriate or replace with true condition
-            const regexSimple = new RegExp(`where\\s+${key}\\s*=\\s*"\\$${key}"`, "gi");
+            const regexSimple = new RegExp(`where\\s+${escapedKey}\\s*=\\s*"\\$${escapedKey}"`, "gi");
             result = result.replace(regexSimple, "where 1=1");
-            const regexWrapped = new RegExp(`where\\s+${key}\\s*=\\s*"\\$\\{${key}\\}"`, "gi");
+            const regexWrapped = new RegExp(`where\\s+${escapedKey}\\s*=\\s*"\\$\\{${escapedKey}\\}"`, "gi");
             result = result.replace(regexWrapped, "where 1=1");
           }
 
           // Replace $var and ${var}
-          result = result.replace(new RegExp(`\\$${key}\\b`, "g"), val);
-          result = result.replace(new RegExp(`\\$\\{${key}\\}`, "g"), val);
+          result = result.replace(new RegExp(`\\$${escapedKey}\\b`, "g"), val);
+          result = result.replace(new RegExp(`\\$\\{${escapedKey}\\}`, "g"), val);
         }
 
         return result;
