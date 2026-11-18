@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildVisualLql, lqlStringLiteral, type VisualQueryState } from "@/lib/lql/query-contract";
+import { buildServiceExploreQuery, buildVisualLql, lqlStringLiteral, type VisualQueryState } from "@/lib/lql/query-contract";
 
 const baseState: VisualQueryState = {
   source: "events",
@@ -92,5 +92,45 @@ describe("LQL query contract", () => {
     );
     expect(hasRawControl(query)).toBe(false);
 >>>>>>> 9e48adb (fix(lql): escape newlines and control chars in string literals)
+  });
+});
+
+describe("service explore query", () => {
+  it("builds the standard service query for a normal service name", () => {
+    expect(buildServiceExploreQuery("api-gateway")).toBe(
+      'from events | where service = "api-gateway" | sort timestamp desc | limit 100',
+    );
+  });
+
+  it("escapes quotes and backslashes in the service name so LQL cannot be injected", () => {
+    // A name containing a double quote previously broke out of the LQL literal.
+    const malicious = 'api" | take 1 // \\';
+    const query = buildServiceExploreQuery(malicious);
+
+    expect(query).toBe(
+      'from events | where service = "api\\" | take 1 // \\\\" | sort timestamp desc | limit 100',
+    );
+    // The literal is balanced: still exactly one service filter and one pipe section per clause.
+    expect(query.match(/where service =/g)).toHaveLength(1);
+    expect(query).toContain('"api\\" | take 1 // \\\\"');
+    // URL-encoding the escaped query round-trips without altering the LQL escaping.
+    expect(decodeURIComponent(encodeURIComponent(query))).toBe(query);
+  });
+
+  it("escapes an attempted predicate breakout and supports extra filters/limit", () => {
+    const query = buildServiceExploreQuery('x" or service = "admin', {
+      additionalFilter: 'and (level = "error" or level = "fatal")',
+      limit: 50,
+    });
+
+    expect(query).toBe(
+      'from events | where service = "x\\" or service = \\"admin" and (level = "error" or level = "fatal") | sort timestamp desc | limit 50',
+    );
+  });
+
+  it("clamps the limit to a safe positive integer", () => {
+    expect(buildServiceExploreQuery("svc", { limit: 0 })).toContain("limit 1");
+    expect(buildServiceExploreQuery("svc", { limit: 999_999 })).toContain("limit 10000");
+    expect(buildServiceExploreQuery("svc", { limit: 5.9 })).toContain("limit 5");
   });
 });

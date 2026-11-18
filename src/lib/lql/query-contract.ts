@@ -87,6 +87,24 @@ export function lqlStringLiteral(value: string): string {
   return `"${escaped}"`;
 }
 
+/**
+ * Builds the LQL used by the "Query in Explore" navigation actions.
+ *
+ * Service names originate from backend data (service graph / error groups), so
+ * they must be emitted as a properly escaped LQL string literal. Callers URL-
+ * encode the result with `encodeURIComponent`, which only escapes the final
+ * URL and does NOT escape `"` or `\` inside the LQL literal itself — a name
+ * containing a quote would otherwise break out of the literal and inject LQL.
+ */
+export function buildServiceExploreQuery(
+  service: string,
+  options: { additionalFilter?: string; limit?: number } = {},
+): string {
+  const limit = Math.min(Math.max(1, Math.trunc(options.limit ?? 100)), 10_000);
+  const additionalFilter = options.additionalFilter ? ` ${options.additionalFilter}` : "";
+  return `from events | where service = ${lqlStringLiteral(service)}${additionalFilter} | sort timestamp desc | limit ${limit}`;
+}
+
 function lqlValue(value: string): string {
   const trimmed = value.trim();
   return NUMBER.test(trimmed) ? trimmed : lqlStringLiteral(value);
