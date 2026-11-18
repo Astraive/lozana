@@ -21,6 +21,43 @@ interface SpanDetailPanelProps {
   onReconstructCortex?: (traceId: string) => void;
 }
 
+type ClipboardWriter = {
+  writeText?: (text: string) => Promise<void>;
+};
+
+interface CopyClipboardOptions {
+  clipboard?: ClipboardWriter;
+  onSuccess: () => void;
+  onError: () => void;
+}
+
+/**
+ * Writes `text` to the clipboard and reports the outcome via callbacks.
+ * Exported for regression testing: it guards a missing clipboard API, awaits
+ * the write, and only reports success when the write actually resolved.
+ */
+export async function copySpanText(
+  text: string,
+  { clipboard, onSuccess, onError }: CopyClipboardOptions
+): Promise<boolean> {
+  const writer =
+    clipboard ??
+    (typeof navigator !== "undefined" ? navigator.clipboard : undefined);
+
+  try {
+    if (!writer?.writeText) {
+      onError();
+      return false;
+    }
+    await writer.writeText(text);
+    onSuccess();
+    return true;
+  } catch {
+    onError();
+    return false;
+  }
+}
+
 export function SpanDetailPanel({
   span,
   open,
@@ -32,11 +69,17 @@ export function SpanDetailPanel({
 
   if (!span) return null;
 
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    toast.success("Copied to clipboard");
-    setTimeout(() => setCopiedKey(null), 1500);
+  const handleCopy = async (text: string, key: string) => {
+    await copySpanText(text, {
+      onSuccess: () => {
+        setCopiedKey(key);
+        toast.success("Copied to clipboard");
+        setTimeout(() => setCopiedKey(null), 1500);
+      },
+      onError: () => {
+        toast.error("Failed to copy to clipboard");
+      },
+    });
   };
 
   const attrs = span.attrs || {};
