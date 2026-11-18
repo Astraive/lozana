@@ -3,6 +3,8 @@ export const LQL_QUERY_CONTRACT_VERSION = "0.4";
 export type QueryOperator = "=" | "!=" | "contains" | ">" | "<" | ">=" | "<=";
 export type AggregateFunction = "count" | "p50" | "p95" | "p99" | "avg" | "sum" | "min" | "max" | "dcount";
 
+const QUERY_OPERATORS = new Set<QueryOperator>(["=", "!=", "contains", ">", "<", ">=", "<="]);
+
 export interface VisualQueryFilter {
   id: string;
   field: string;
@@ -56,6 +58,11 @@ function requireAlias(value: string): string {
   return alias;
 }
 
+function requireOperator(value: string): QueryOperator {
+  if (!QUERY_OPERATORS.has(value as QueryOperator)) throw new Error(`invalid LQL filter operator: ${value}`);
+  return value as QueryOperator;
+}
+
 export function lqlStringLiteral(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
@@ -75,9 +82,10 @@ export function buildVisualLql(state: VisualQueryState): string {
   for (const filter of state.filters) {
     if (!filter.value) continue;
     const field = requireIdentifier(filter.field);
-    parts.push(filter.operator === "contains"
+    const operator = requireOperator(filter.operator);
+    parts.push(operator === "contains"
       ? `where ${field} contains ${lqlStringLiteral(filter.value)}`
-      : `where ${field} ${filter.operator} ${lqlValue(filter.value)}`);
+      : `where ${field} ${operator} ${lqlValue(filter.value)}`);
   }
 
   if (state.isAggregate) {
