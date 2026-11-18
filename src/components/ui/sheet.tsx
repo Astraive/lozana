@@ -40,11 +40,27 @@ function Sheet({ open: controlledOpen, defaultOpen = false, onOpenChange, childr
   )
 }
 
+/**
+ * Composes the sheet's open/close side effect with a consumer-supplied `onClick`.
+ *
+ * Spread button props *before* the returned handler so a caller's `onClick`
+ * cannot silently replace the open/close behavior.
+ */
+export function composeSheetClickHandler(
+  onOpen: () => void,
+  onClick?: React.MouseEventHandler<HTMLButtonElement>,
+): React.MouseEventHandler<HTMLButtonElement> {
+  return (event) => {
+    onOpen()
+    onClick?.(event)
+  }
+}
+
 interface SheetTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean
 }
 
-function SheetTrigger({ children, asChild, ...props }: SheetTriggerProps) {
+function SheetTrigger({ children, asChild, onClick, ...props }: SheetTriggerProps) {
   const { setOpen } = React.useContext(SheetContext)
 
   if (asChild && React.isValidElement(children)) {
@@ -57,7 +73,7 @@ function SheetTrigger({ children, asChild, ...props }: SheetTriggerProps) {
   }
 
   return (
-    <button type="button" aria-haspopup="dialog" className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" onClick={() => setOpen(true)} {...props}>
+    <button type="button" aria-haspopup="dialog" className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" {...props} onClick={composeSheetClickHandler(() => setOpen(true), onClick)}>
       {children}
     </button>
   )
@@ -154,10 +170,10 @@ function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
 }
 
-function SheetClose({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+function SheetClose({ children, className, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const { setOpen } = React.useContext(SheetContext)
   return (
-    <button type="button" className={className} onClick={() => setOpen(false)} {...props}>
+    <button type="button" className={className} {...props} onClick={composeSheetClickHandler(() => setOpen(false), onClick)}>
       {children}
     </button>
   )
