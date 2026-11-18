@@ -219,11 +219,22 @@ export const useDashboardStore = create<DashboardStoreState>()(
         for (const [key, val] of Object.entries(vars)) {
           const escapedKey = escapeRegExp(key);
           if (!val || val === "all") {
-            // Remove where filters for "all" if appropriate or replace with true condition
-            const regexSimple = new RegExp(`where\\s+${escapedKey}\\s*=\\s*"\\$${escapedKey}"`, "gi");
-            result = result.replace(regexSimple, "where 1=1");
-            const regexWrapped = new RegExp(`where\\s+${escapedKey}\\s*=\\s*"\\$\\{${escapedKey}\\}"`, "gi");
-            result = result.replace(regexWrapped, "where 1=1");
+            // An "all" variable means "no filter": neutralize its condition
+            // wherever it occurs, including as a non-leading term of a compound
+            // predicate (e.g. `where level = "error" and service = "$service"`).
+            // Replacing the condition itself with a tautology keeps the query
+            // valid in any position and under either AND or OR; the previous
+            // `where`-anchored patterns only matched the first term.
+            const conditionSimple = new RegExp(
+              `(?<![\\w])${escapedKey}\\s*=\\s*"\\$${escapedKey}"`,
+              "gi"
+            );
+            result = result.replace(conditionSimple, "1=1");
+            const conditionWrapped = new RegExp(
+              `(?<![\\w])${escapedKey}\\s*=\\s*"\\$\\{${escapedKey}\\}"`,
+              "gi"
+            );
+            result = result.replace(conditionWrapped, "1=1");
           }
 
           // Replace $var and ${var}
