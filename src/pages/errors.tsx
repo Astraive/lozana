@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { LozaEvent } from "@/types/event";
+import { buildErrorExploreQuery } from "@/lib/lql/explore-query";
 
 interface ErrorGroup {
   fingerprint: string;
@@ -287,7 +288,7 @@ export default function ErrorsPage() {
                           size="sm"
                           onClick={() =>
                             navigate(
-                              `/explore?q=${encodeURIComponent(`from events | where service = "${group.service}" and (level = "error" or level = "fatal") | sort timestamp desc | limit 50`)}`
+                              `/explore?q=${encodeURIComponent(buildErrorExploreQuery(group.service))}`
                             )
                           }
                           className="h-7 text-xs gap-1.5"
