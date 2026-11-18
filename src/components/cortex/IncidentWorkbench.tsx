@@ -26,12 +26,31 @@ interface IncidentWorkbenchProps {
   onViewTrace?: (traceId: string) => void;
 }
 
+export type FeedbackVote = "helpful" | "unhelpful";
+
+/**
+ * Returns the next feedback state for a vote submission.
+ *
+ * A vote is only reflected in the UI once the backend confirms it. On failure
+ * the previous state is returned untouched so a rejected vote is never left
+ * rendered as "selected" (which would falsely tell an operator it was recorded).
+ */
+export function resolveFeedbackVote(
+  prev: Record<string, FeedbackVote>,
+  remediationId: string,
+  vote: FeedbackVote,
+  submissionSucceeded: boolean
+): Record<string, FeedbackVote> {
+  if (!submissionSucceeded) return prev;
+  return { ...prev, [remediationId]: vote };
+}
+
 export function IncidentWorkbench({
   reconstruction,
   incidentGraph,
 }: IncidentWorkbenchProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [feedbackState, setFeedbackState] = useState<Record<string, "helpful" | "unhelpful">>({});
+  const [feedbackState, setFeedbackState] = useState<Record<string, FeedbackVote>>({});
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -40,16 +59,20 @@ export function IncidentWorkbench({
     setTimeout(() => setCopiedId(null), 1500);
   };
 
-  const handleFeedback = async (remediationId: string, vote: "helpful" | "unhelpful") => {
-    setFeedbackState((prev) => ({ ...prev, [remediationId]: vote }));
+  const handleFeedback = async (remediationId: string, vote: FeedbackVote) => {
     try {
       await submitRemediationFeedback({
         incident_id: reconstruction.incident_id,
         remediation_id: remediationId,
         vote,
       });
+      // Commit the vote only after the backend confirms it was recorded.
+      setFeedbackState((prev) => resolveFeedbackVote(prev, remediationId, vote, true));
       toast.success(`Feedback recorded: marked as ${vote}`);
     } catch {
+      // No optimistic update was applied, but make the rollback explicit so a
+      // failed submission can never leave a vote rendered as selected.
+      setFeedbackState((prev) => resolveFeedbackVote(prev, remediationId, vote, false));
       toast.error("Failed to submit feedback to Cortex backend");
     }
   };
