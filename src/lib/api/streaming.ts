@@ -362,6 +362,14 @@ export class LiveStreamClient {
           }
         }
 
+        // The final line may not end with a newline. The split loop above only
+        // processes complete lines and keeps the remainder in partialChunk, so
+        // flush it here or the last event is lost when the stream ends.
+        const trailingLine = partialChunk.trim();
+        if (trailingLine) {
+          this.processRawLine(trailingLine);
+        }
+
         if (this.abortController === controller && !controller.signal.aborted) {
           this.scheduleReconnect();
         }

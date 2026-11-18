@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import {
   RingBuffer,
   LiveStreamClient,
@@ -230,6 +230,93 @@ describe("WebSocket tail contract", () => {
     );
 
     expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-valid"]);
+    client.disconnect();
+  });
+});
+
+function ndjsonResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const encoded = chunks.map((chunk) => encoder.encode(chunk));
+  let index = 0;
+  const body = {
+    getReader() {
+      return {
+        async read() {
+          if (index < encoded.length) {
+            return { done: false as const, value: encoded[index++] };
+          }
+          return { done: true as const, value: undefined };
+        },
+        cancel() {},
+      };
+    },
+  };
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    body,
+  } as unknown as Response;
+}
+
+describe("NDJSON tail contract", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    useAppStore.setState({
+      collectorUrl: "http://localhost:9308",
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+  });
+
+  it("processes a trailing NDJSON line without a newline when the stream ends", async () => {
+    const first = JSON.stringify({
+      event_id: "evt-first",
+      timestamp: "2026-08-24T05:00:00Z",
+      service: "checkout",
+    });
+    const last = JSON.stringify({
+      event_id: "evt-last",
+      timestamp: "2026-08-24T05:00:01Z",
+      service: "checkout",
+    });
+    // The final line has no trailing newline, so it stays in partialChunk until
+    // the stream's done signal. It must still be delivered to subscribers.
+    vi.stubGlobal("fetch", vi.fn(async () => ndjsonResponse([`${first}\n${last}`])));
+
+    const client = new LiveStreamClient();
+    const received: string[] = [];
+    client.onEvent((event) => received.push(event.event_id));
+    client.connect(false);
+
+    await vi.waitFor(() => {
+      expect(received).toEqual(["evt-first", "evt-last"]);
+    });
+    expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-first", "evt-last"]);
+    client.disconnect();
+  });
+
+  it("ignores a whitespace-only trailing fragment without emitting an event", async () => {
+    const first = JSON.stringify({
+      event_id: "evt-only",
+      timestamp: "2026-08-24T05:01:00Z",
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ndjsonResponse([`${first}\n   `])));
+
+    const client = new LiveStreamClient();
+    client.connect(false);
+
+    await vi.waitFor(() => {
+      expect(client.getEvents()).toHaveLength(1);
+    });
+    expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-only"]);
     client.disconnect();
   });
 });
