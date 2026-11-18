@@ -203,15 +203,9 @@ export function buildTraceTree(events: (LozaEvent | Record<string, unknown>)[]):
     }
   }
 
-  // If no parent hierarchy was declared, nest child spans based on service call chronology
-  if (rootSpans.length === flatSpans.length && flatSpans.length > 1) {
-    const root = flatSpans[0];
-    rootSpans.length = 0;
-    rootSpans.push(root);
-    for (let i = 1; i < flatSpans.length; i++) {
-      root.children.push(flatSpans[i]);
-    }
-  }
+  // When no parent hierarchy is declared every span is a legitimate root. Keep each
+  // span as its own root instead of fabricating a hierarchy under flatSpans[0],
+  // which would collapse independent spans and assign them incorrect depths.
 
   // Compute depths recursively
   function assignDepth(span: TraceSpan, currentDepth: number) {
@@ -260,8 +254,10 @@ export function buildTraceTree(events: (LozaEvent | Record<string, unknown>)[]):
     }
   }
 
-  if (rootSpans.length > 0) {
-    findCriticalPath(rootSpans[0]);
+  // With multiple independent roots, compute the critical path for each root tree
+  // rather than only the first one, so no root's spans are left unexamined.
+  for (const root of rootSpans) {
+    findCriticalPath(root);
   }
 
   // Compute Service Summaries
