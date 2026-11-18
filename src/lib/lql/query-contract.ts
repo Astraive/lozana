@@ -61,10 +61,30 @@ function requireAlias(value: string): string {
 function requireOperator(value: string): QueryOperator {
   if (!QUERY_OPERATORS.has(value as QueryOperator)) throw new Error(`invalid LQL filter operator: ${value}`);
   return value as QueryOperator;
-}
+// LQL string literals are single-line tokens (see monaco-lql.ts string rule:
+// /"([^"\\]|\\.)*"/ — a raw line terminator can break the literal). Escape
+// backslashes and quotes, then encode every control character/line terminator
+// so no raw newline can terminate the literal and inject further LQL tokens.
+const CONTROL_ESCAPES: Record<string, string> = {
+  "\t": "\\t",
+  "\n": "\\n",
+  "\r": "\\r",
+};
+
+function isControlCharacter(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return code <= 0x1f || code === 0x7f || char === "\u2028" || char === "\u2029";}
 
 export function lqlStringLiteral(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  let escaped = "";
+  for (const char of value) {
+    if (char === "\\") escaped += "\\\\";
+    else if (char === '"') escaped += '\\"';
+    else if (CONTROL_ESCAPES[char]) escaped += CONTROL_ESCAPES[char];
+    else if (isControlCharacter(char)) escaped += `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`;
+    else escaped += char;
+  }
+  return `"${escaped}"`;
 }
 
 function lqlValue(value: string): string {
