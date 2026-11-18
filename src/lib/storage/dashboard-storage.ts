@@ -289,6 +289,10 @@ export function importDashboardJson(jsonString: string): Dashboard {
     throw new Error("Invalid dashboard JSON format: missing title or panels array");
   }
 
+  if (parsed.panels.some((p) => p === null || typeof p !== "object" || Array.isArray(p))) {
+    throw new Error("Invalid dashboard JSON format: each panel must be a non-null object");
+  }
+
   return {
     id: "dash-" + Math.random().toString(36).substring(2, 9),
     title: parsed.title,
