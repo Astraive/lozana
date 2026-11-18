@@ -51,6 +51,18 @@ const DEFAULT_VISIBLE_COLUMNS = [
   "trace_id",
 ];
 
+/**
+ * Stable identifier for a grid row. Both the row's rendered identity and the
+ * copy-success feedback use this so they always agree, including for events
+ * that have no `event_id` (where the fallback is the row index).
+ */
+export function getEventRowId(
+  event: LozaEvent | Record<string, unknown>,
+  index: number,
+): string {
+  return String(event.event_id || index);
+}
+
 export function EventDataGrid({
   events,
   columns: providedColumns,
@@ -120,11 +132,14 @@ export function EventDataGrid({
     }
   };
 
-  const copyEventJson = (event: LozaEvent | Record<string, unknown>, e: React.MouseEvent) => {
+  const copyEventJson = (
+    event: LozaEvent | Record<string, unknown>,
+    e: React.MouseEvent,
+    index: number,
+  ) => {
     e.stopPropagation();
-    const id = String(event.event_id || Math.random());
     navigator.clipboard.writeText(JSON.stringify(event, null, 2));
-    setCopiedId(id);
+    setCopiedId(getEventRowId(event, index));
     toast.success("Event JSON copied to clipboard");
     setTimeout(() => setCopiedId(null), 1500);
   };
@@ -300,7 +315,7 @@ export function EventDataGrid({
               </TableRow>
             ) : (
               sortedEvents.map((evt, idx) => {
-                const eventId = String(evt.event_id || idx);
+                const eventId = getEventRowId(evt, idx);
                 const isSelected = selectedEventId === eventId;
                 const isDiffSelected = selectedForDiff.some(
                   (d) => String(d.event_id || "") === eventId
@@ -340,7 +355,7 @@ export function EventDataGrid({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => copyEventJson(evt, e)}
+                          onClick={(e) => copyEventJson(evt, e, idx)}
                           title="Copy JSON"
                           className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                         >
