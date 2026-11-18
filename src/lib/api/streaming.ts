@@ -380,6 +380,7 @@ export class LiveStreamClient {
     this.setStatus("connecting");
     const collector = getActiveCollector();
     const environment = getActiveEnvironment();
+    const credential = getApiKey();
 
     try {
       const url = buildTailWebSocketUrl(
@@ -388,7 +389,20 @@ export class LiveStreamClient {
         environment,
         this.filters
       );
-      const socket = new WebSocket(url, buildWebSocketProtocols(getApiKey()));
+
+      // The credential is transported in the Sec-WebSocket-Protocol handshake
+      // header (see buildWebSocketProtocols). Over ws:// that header is sent in
+      // cleartext and is visible to proxies and network observers. Never put the
+      // credential on the wire unless the connection is TLS-protected.
+      if (credential && new URL(url).protocol !== "wss:") {
+        this.setStatus(
+          "error",
+          "Authenticated WebSocket tails require a TLS-protected (wss://) endpoint"
+        );
+        return;
+      }
+
+      const socket = new WebSocket(url, buildWebSocketProtocols(credential));
       this.ws = socket;
       socket.onopen = () => {
         if (this.ws !== socket) return;
