@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServiceGraph } from "@/lib/hooks";
 import { ServiceTopologyGraph } from "@/components/topology/ServiceTopologyGraph";
+import { buildServiceExploreHref } from "@/lib/lql/explore-links";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,9 +119,7 @@ export default function ServicesPage() {
             <Card
               key={svc.id}
               className="bg-card border-border hover:border-primary/40 transition-all cursor-pointer group shadow-sm"
-              onClick={() =>
-                navigate(`/explore?q=${encodeURIComponent(`from events | where service = "${svc.name}" | sort timestamp desc | limit 100`)}`)
-              }
+              onClick={() => navigate(buildServiceExploreHref(svc.name))}
             >
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
