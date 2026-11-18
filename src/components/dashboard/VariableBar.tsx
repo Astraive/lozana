@@ -4,6 +4,7 @@ import { queryLqlEvents } from "@/lib/api/events";
 import { Input } from "@/components/ui/input";
 import { Filter } from "lucide-react";
 import type { DashboardVariable } from "@/types/dashboard";
+import { resolveVariableValue } from "@/lib/dashboard/variable-value";
 
 interface VariableBarProps {
   variables: DashboardVariable[];
@@ -45,7 +46,7 @@ export function VariableBar({ variables }: VariableBarProps) {
       </div>
 
       {variables.map((v) => {
-        const currentValue = variableValues[v.name] || v.defaultValue || (v.includeAll ? "all" : "");
+        const currentValue = resolveVariableValue(v, variableValues);
         const options =
           v.type === "query"
             ? dynamicOptions[v.name] || []
