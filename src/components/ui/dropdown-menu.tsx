@@ -171,7 +171,7 @@ interface DropdownMenuItemProps extends React.HTMLAttributes<HTMLDivElement> {
   inset?: boolean
 }
 
-function DropdownMenuItem({ className, inset, children, ...props }: DropdownMenuItemProps) {
+function DropdownMenuItem({ className, inset, children, onClick, onKeyDown, ...props }: DropdownMenuItemProps) {
   const { setOpen } = React.useContext(DropdownMenuContext)
 
   return (
@@ -183,8 +183,12 @@ function DropdownMenuItem({ className, inset, children, ...props }: DropdownMenu
       )}
       role="menuitem"
       tabIndex={0}
-      onClick={() => setOpen(false)}
+      onClick={(e) => {
+        onClick?.(e)
+        setOpen(false)
+      }}
       onKeyDown={(e) => {
+        onKeyDown?.(e)
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
           setOpen(false)
