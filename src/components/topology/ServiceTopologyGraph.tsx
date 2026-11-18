@@ -7,6 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { buildServiceExploreHref } from "@/lib/lql/explore-links";
 import type { ServiceGraph, ServiceNode } from "@/types/cortex";
 
 interface ServiceTopologyGraphProps {
@@ -309,7 +310,7 @@ export function ServiceTopologyGraph({
               <div className="pt-2 border-t border-border/60 space-y-2">
                 <Button
                   size="sm"
-                  onClick={() => navigate(`/explore?q=${encodeURIComponent(`from events | where service = "${activeNode.name}" | sort timestamp desc | limit 100`)}`)}
+                  onClick={() => navigate(buildServiceExploreHref(activeNode.name))}
                   className="w-full text-xs gap-1.5"
                 >
                   <Search className="h-3.5 w-3.5" />
