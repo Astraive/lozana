@@ -1,4 +1,5 @@
 import { PanelWrapper } from "./PanelWrapper";
+import { renderMarkdownContent } from "./markdown-content";
 import type { Panel } from "@/types/dashboard";
 
 interface MarkdownPanelProps {
@@ -15,8 +16,8 @@ export function MarkdownPanel({ panel, onEdit, onDelete, onDuplicate }: Markdown
     <PanelWrapper panel={panel} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate}>
       {() => (
         <div className="flex-1 overflow-y-auto p-2 text-xs space-y-2 leading-relaxed text-foreground/90">
-          <div className="prose prose-invert max-w-none text-xs whitespace-pre-wrap font-sans">
-            {content}
+          <div className="prose prose-invert max-w-none text-xs font-sans">
+            {renderMarkdownContent(content)}
           </div>
         </div>
       )}
