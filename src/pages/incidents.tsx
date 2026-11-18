@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, BrainCircuit, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
+import { RequestGuard } from "@/lib/incident-request-guard";
 import type { CortexReconstruction, IncidentGraph } from "@/types/cortex";
 
 export default function IncidentsPage() {
@@ -21,25 +22,31 @@ export default function IncidentsPage() {
   const [error, setError] = useState(false);
   const [mode, setMode] = useState<"fast" | "deep">("fast");
   const modeRef = useRef(mode);
+  const requestGuardRef = useRef(new RequestGuard());
 
   const loadIncident = useCallback((
     targetId: string,
     targetMode: "fast" | "deep",
   ) => {
+    const guard = requestGuardRef.current;
+    const token = guard.begin();
     void Promise.all([
       reconstructIncident(targetId, targetMode),
       getIncidentGraph(targetId),
     ])
       .then(([recData, graphData]) => {
+        if (!guard.isCurrent(token)) return;
         setReconstruction(recData);
         setGraph(graphData);
         toast.success("Incident reconstructed by Cortex");
       })
       .catch(() => {
+        if (!guard.isCurrent(token)) return;
         setError(true);
         toast.error("Cortex could not reconstruct this incident");
       })
       .finally(() => {
+        if (!guard.isCurrent(token)) return;
         setLoading(false);
       });
   }, []);
@@ -66,9 +73,15 @@ export default function IncidentsPage() {
   };
 
   useEffect(() => {
+    const guard = requestGuardRef.current;
     if (urlIncidentId) {
       void loadIncident(urlIncidentId, modeRef.current);
     }
+    return () => {
+      // A request still in flight when this effect re-runs (URL change) or the
+      // page unmounts must no longer be allowed to write stale state.
+      guard.invalidate();
+    };
   }, [loadIncident, urlIncidentId]);
 
   const handleModeChange = (nextMode: "fast" | "deep") => {
