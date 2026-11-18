@@ -124,6 +124,62 @@ describe("WebSocket tail contract", () => {
     expect(buildWebSocketProtocols("")).toEqual(["loza.tail.v1"]);
   });
 
+  it.each([
+    ["ws://localhost:9308/ws/tail"],
+    ["http://localhost:9308/ws/tail"],
+  ])("refuses to send the API key over an unencrypted tail (%s)", (wsUrl) => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl,
+      apiKey: "lz_sec_live_key",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    const errors: Array<string | undefined> = [];
+    client.onStatus((status, error) => {
+      if (status === "error") errors.push(error);
+    });
+
+    client.connect(true);
+
+    // No socket may be opened, so the credential never reaches the wire.
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    expect(client.getStatus()).toBe("error");
+    expect(errors[0]).toMatch(/wss|tls/i);
+  });
+
+  it("sends the credential only over a TLS-protected (wss://) tail", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "wss://collector.example.com/ws/tail",
+      apiKey: "lz_sec_live_key",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+
+    client.connect(true);
+
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    const socket = FakeWebSocket.instances[0];
+    expect(socket.url).toMatch(/^wss:/);
+    expect(socket.protocols).toContain("loza.auth.v1.bHpfc2VjX2xpdmVfa2V5");
+    client.disconnect();
+  });
+
   it("ignores close callbacks from a replaced WebSocket", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
