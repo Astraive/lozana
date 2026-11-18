@@ -54,6 +54,7 @@ describe("LQL query contract", () => {
     expect(() => buildVisualLql({ ...baseState, timePreset: "1 hour" })).toThrow("invalid LQL duration");
   });
 
+<<<<<<< HEAD
   it("rejects filter operators outside the allowlist to prevent LQL injection", () => {
     const rehydrated = (operator: string): VisualQueryState => ({
       ...baseState,
@@ -67,5 +68,29 @@ describe("LQL query contract", () => {
     for (const operator of ["=", "!=", "contains", ">", "<", ">=", "<="]) {
       expect(() => buildVisualLql(rehydrated(operator))).not.toThrow();
     }
+=======
+  it("escapes newlines and control characters so a literal cannot be broken out of", () => {
+    const hasRawControl = (text: string) =>
+      [...text].some((char) => {
+        const code = char.charCodeAt(0);
+        return code <= 0x1f || code === 0x7f || char === "\u2028" || char === "\u2029";
+      });
+
+    const injected = 'api"\n| where 1 == 1\r\n\x00\u2028';
+    const literal = lqlStringLiteral(injected);
+
+    expect(literal).toBe('"api\\"\\n| where 1 == 1\\r\\n\\u0000\\u2028"');
+    // No raw line terminator or control character may remain inside the literal.
+    expect(hasRawControl(literal)).toBe(false);
+
+    const query = buildVisualLql({
+      ...baseState,
+      filters: [{ id: "3", field: "service", operator: "=", value: injected }],
+    });
+    expect(query).toBe(
+      'from events | where service = "api\\"\\n| where 1 == 1\\r\\n\\u0000\\u2028" | sort timestamp desc | take 100',
+    );
+    expect(hasRawControl(query)).toBe(false);
+>>>>>>> 9e48adb (fix(lql): escape newlines and control chars in string literals)
   });
 });
