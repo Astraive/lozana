@@ -48,8 +48,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return "dark"
     return (localStorage.getItem(STORAGE_KEY) as Theme) || "dark"
   })
+  const [systemTheme, setSystemTheme] = useState<"dark" | "light">(getSystemTheme)
 
-  const resolvedTheme = theme === "system" ? getSystemTheme() : theme
+  const resolvedTheme = theme === "system" ? systemTheme : theme
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
@@ -65,7 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (theme !== "system") return
     const mql = window.matchMedia("(prefers-color-scheme: dark)")
-    const handler = () => applyTheme(getSystemTheme())
+    const handler = () => setSystemTheme(getSystemTheme())
     mql.addEventListener("change", handler)
     return () => mql.removeEventListener("change", handler)
   }, [theme])
