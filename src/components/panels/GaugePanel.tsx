@@ -1,4 +1,5 @@
 import { PanelWrapper } from "./PanelWrapper";
+import { computeGaugeAngle, computeGaugePercentage } from "@/lib/gauge";
 import type { Panel } from "@/types/dashboard";
 
 interface GaugePanelProps {
@@ -30,11 +31,10 @@ export function GaugePanel({ panel, onEdit, onDelete, onDuplicate }: GaugePanelP
 
         const min = panel.visualization?.gaugeMin ?? 0;
         const max = panel.visualization?.gaugeMax ?? 100;
-        const clamped = Math.max(min, Math.min(max, val));
-        const percentage = ((clamped - min) / (max - min)) * 100;
+        const percentage = computeGaugePercentage(val, min, max);
 
         // Angle from -90 to +90 degrees for half circle
-        const angle = (percentage / 100) * 180 - 90;
+        const angle = computeGaugeAngle(percentage);
 
         let arcColor = panel.visualization?.color || "#3b82f6";
         if (panel.visualization?.thresholds) {
