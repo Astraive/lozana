@@ -6,6 +6,7 @@ import { LQL_CANONICAL_FIELDS } from "@/lib/lql/monaco-lql";
 import {
   buildVisualLql,
   isLqlIdentifier,
+  parseVisualLql,
   type VisualQueryAggregate,
   type VisualQueryFilter,
 } from "@/lib/lql/query-contract";
@@ -25,6 +26,7 @@ export type QueryFilter = VisualQueryFilter;
 export type QueryAggregate = VisualQueryAggregate;
 
 interface VisualQueryBuilderProps {
+  /** Active LQL query to hydrate the builder from on mount. Unsupported clauses are ignored. */
   initialQuery?: string;
   onApply: (query: string) => void;
   onCancel?: () => void;
@@ -32,23 +34,26 @@ interface VisualQueryBuilderProps {
 }
 
 export function VisualQueryBuilder({
+  initialQuery,
   onApply,
   onCancel,
   availableCustomAttributes = [],
 }: VisualQueryBuilderProps) {
-  const source = "events";
-  const [timePreset, setTimePreset] = useState<string>("1h");
-  const [filters, setFilters] = useState<QueryFilter[]>([]);
-  const [isAggregate, setIsAggregate] = useState<boolean>(false);
-  const [aggregates, setAggregates] = useState<QueryAggregate[]>([
-    { id: "1", fn: "count", field: "" },
-  ]);
-  const [groupByField, setGroupByField] = useState<string>("service");
-  const [timeBucket, setTimeBucket] = useState<string>("5m");
-  const [useTimeBucket, setUseTimeBucket] = useState<boolean>(false);
-  const [sortField, setSortField] = useState<string>("timestamp");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [limit, setLimit] = useState<number>(100);
+  // Hydrate once on mount from the query that was active when the builder was
+  // opened; previously initialQuery was declared but never read, so switching
+  // to GUI mode silently replaced the active query with hardcoded defaults.
+  const [initialState] = useState(() => parseVisualLql(initialQuery));
+  const [source] = useState(initialState.source);
+  const [timePreset, setTimePreset] = useState<string>(initialState.timePreset);
+  const [filters, setFilters] = useState<QueryFilter[]>(initialState.filters);
+  const [isAggregate, setIsAggregate] = useState<boolean>(initialState.isAggregate);
+  const [aggregates, setAggregates] = useState<QueryAggregate[]>(initialState.aggregates);
+  const [groupByField, setGroupByField] = useState<string>(initialState.groupByField);
+  const [timeBucket, setTimeBucket] = useState<string>(initialState.timeBucket);
+  const [useTimeBucket, setUseTimeBucket] = useState<boolean>(initialState.useTimeBucket);
+  const [sortField, setSortField] = useState<string>(initialState.sortField);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(initialState.sortDir);
+  const [limit, setLimit] = useState<number>(initialState.limit);
 
   const allFields = Array.from(new Set([...LQL_CANONICAL_FIELDS, ...availableCustomAttributes])).filter(isLqlIdentifier);
 
@@ -143,6 +148,7 @@ export function VisualQueryBuilder({
             className="w-full h-8 rounded-md bg-muted/50 border border-input px-2 text-xs"
           >
             <option value="events">events (Canonical wide events)</option>
+            {source !== "events" && <option value={source}>{source}</option>}
           </select>
         </div>
 

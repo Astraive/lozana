@@ -61,6 +61,8 @@ function requireAlias(value: string): string {
 function requireOperator(value: string): QueryOperator {
   if (!QUERY_OPERATORS.has(value as QueryOperator)) throw new Error(`invalid LQL filter operator: ${value}`);
   return value as QueryOperator;
+}
+
 // LQL string literals are single-line tokens (see monaco-lql.ts string rule:
 // /"([^"\\]|\\.)*"/ — a raw line terminator can break the literal). Escape
 // backslashes and quotes, then encode every control character/line terminator
@@ -157,4 +159,213 @@ export function buildVisualLql(state: VisualQueryState): string {
 
   if (state.limit > 0) parts.push(`take ${Math.min(Math.max(1, Math.trunc(state.limit)), 10_000)}`);
   return parts.join(" | ");
+}
+
+const AGGREGATE_FUNCTIONS = new Set<AggregateFunction>([
+  "count", "p50", "p95", "p99", "avg", "sum", "min", "max", "dcount",
+]);
+
+/** Split on a delimiter only at top level (never inside a literal or brackets). */
+function splitTopLevel(text: string, delimiter: "|" | ","): string[] {
+  const segments: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  let escaped = false;
+  let depth = 0;
+
+  for (const char of text) {
+    if (quote) {
+      current += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'") { quote = char; current += char; continue; }
+    if (char === "(" || char === "[" || char === "{") { depth += 1; current += char; continue; }
+    if (char === ")" || char === "]" || char === "}") { depth = Math.max(0, depth - 1); current += char; continue; }
+    if (char === delimiter && depth === 0) { segments.push(current); current = ""; continue; }
+    current += char;
+  }
+  segments.push(current);
+  return segments;
+}
+
+function findTopLevelKeyword(text: string, keyword: string): number {
+  let quote: string | null = null;
+  let escaped = false;
+  let depth = 0;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'") { quote = char; continue; }
+    if (char === "(" || char === "[" || char === "{") { depth += 1; continue; }
+    if (char === ")" || char === "]" || char === "}") { depth = Math.max(0, depth - 1); continue; }
+    if (depth !== 0) continue;
+    if (new RegExp(`^${keyword}\\b`, "i").test(text.slice(i))) return i;
+  }
+  return -1;
+}
+
+function splitByKeyword(text: string, keyword: string): string[] {
+  const parts: string[] = [];
+  let rest = text;
+  let index = findTopLevelKeyword(rest, keyword);
+  while (index >= 0) {
+    parts.push(rest.slice(0, index));
+    rest = rest.slice(index + keyword.length);
+    index = findTopLevelKeyword(rest, keyword);
+  }
+  parts.push(rest);
+  return parts;
+}
+
+/** Reverse of `lqlStringLiteral`: turn a quoted LQL literal back into its value. */
+function unquoteLqlLiteral(raw: string): string {
+  const value = raw.trim();
+  if (value.length < 2 || (value[0] !== '"' && value[0] !== "'") || value[value.length - 1] !== value[0]) {
+    return value;
+  }
+  const body = value.slice(1, -1);
+  let result = "";
+  for (let i = 0; i < body.length; i += 1) {
+    const char = body[i];
+    if (char !== "\\" || i === body.length - 1) { result += char; continue; }
+    const next = body[i + 1];
+    i += 1;
+    if (next === "n") result += "\n";
+    else if (next === "r") result += "\r";
+    else if (next === "t") result += "\t";
+    else if (next === "u") {
+      const hex = body.slice(i + 1, i + 5);
+      if (/^[0-9a-fA-F]{4}$/.test(hex)) { result += String.fromCharCode(parseInt(hex, 16)); i += 4; }
+      else result += next;
+    } else result += next;
+  }
+  return result;
+}
+
+function parseWherePredicates(
+  predicates: string,
+  state: VisualQueryState,
+  nextId: () => string,
+): void {
+  for (const part of splitByKeyword(predicates, "and")) {
+    const text = part.trim();
+    if (!text) continue;
+
+    const ago = text.match(/^timestamp\s*>=\s*ago\(\s*(\d+(?:\.\d+)?(?:ms|s|m|h|d|w))\s*\)$/i);
+    if (ago) { state.timePreset = ago[1]; continue; }
+
+    const comparison = text.match(/^([A-Za-z_][A-Za-z0-9_.]*)\s*(>=|<=|!=|==|=|>|<|contains)\s*(.+)$/i);
+    if (!comparison) continue;
+    const operator = (comparison[2] === "==" ? "=" : comparison[2].toLowerCase()) as QueryOperator;
+    if (!QUERY_OPERATORS.has(operator)) continue;
+    const value = comparison[3].trim();
+    // The builder only models one scalar comparison per filter. Skip compound
+    // expressions so re-serializing cannot silently corrupt the user's query.
+    if (!value || /[()]/.test(value) || /\s+(?:and|or)\s+/i.test(value)) continue;
+    if ((value[0] === '"' || value[0] === "'") && value[value.length - 1] !== value[0]) continue;
+    state.filters.push({ id: nextId(), field: comparison[1], operator, value: unquoteLqlLiteral(value) });
+  }
+}
+
+function parseSummarizeClause(
+  body: string,
+  state: VisualQueryState,
+  nextId: () => string,
+): void {
+  const byIndex = findTopLevelKeyword(body, "by");
+  const aggregatePart = byIndex >= 0 ? body.slice(0, byIndex) : body;
+  const groupPart = byIndex >= 0 ? body.slice(byIndex + 2) : "";
+
+  const aggregates: VisualQueryAggregate[] = [];
+  for (const expression of splitTopLevel(aggregatePart, ",")) {
+    const match = expression.trim().match(
+      /^(?:([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*([^()]*)\s*\)$/,
+    );
+    if (!match) continue;
+    const fn = match[2].toLowerCase() as AggregateFunction;
+    if (!AGGREGATE_FUNCTIONS.has(fn)) continue;
+    const field = match[3].trim();
+    if (fn !== "count" && !isLqlIdentifier(field)) continue;
+    aggregates.push({ id: nextId(), fn, field: fn === "count" ? "" : field });
+  }
+  if (aggregates.length === 0) aggregates.push({ id: "1", fn: "count", field: "" });
+  state.aggregates = aggregates;
+  state.isAggregate = true;
+
+  state.groupByField = "";
+  for (const group of splitTopLevel(groupPart, ",")) {
+    const text = group.trim();
+    if (!text) continue;
+    const bin = text.match(/^bin\s*\(\s*timestamp\s*,\s*(\d+(?:\.\d+)?(?:ms|s|m|h|d|w))\s*\)$/i);
+    if (bin) { state.useTimeBucket = true; state.timeBucket = bin[1]; continue; }
+    if (!state.groupByField && isLqlIdentifier(text)) state.groupByField = text;
+  }
+}
+
+/**
+ * Rehydrate the visual builder state from an LQL string.
+ *
+ * The visual builder only models a subset of LQL, so unsupported clauses are
+ * ignored. The function is total: malformed input falls back to the builder
+ * defaults instead of throwing, so opening the builder can never break a tab.
+ */
+export function parseVisualLql(query?: string | null): VisualQueryState {
+  const state: VisualQueryState = {
+    source: "events",
+    timePreset: "1h",
+    filters: [],
+    isAggregate: false,
+    aggregates: [{ id: "1", fn: "count", field: "" }],
+    groupByField: "service",
+    timeBucket: "5m",
+    useTimeBucket: false,
+    sortField: "timestamp",
+    sortDir: "desc",
+    limit: 100,
+  };
+  if (!query || !query.trim()) return state;
+
+  // An explicit query with no `ago(...)` clause has no time window. Using
+  // "all" keeps it intact when buildVisualLql re-serializes it on Apply.
+  state.timePreset = "all";
+
+  let filterSeq = 0;
+  let aggregateSeq = 0;
+  for (const clause of splitTopLevel(query, "|")) {
+    const text = clause.trim().replace(/^\/\/.*$/gm, "").trim();
+    if (!text) continue;
+
+    const from = text.match(/^from\s+([A-Za-z_][A-Za-z0-9_.]*)$/i);
+    if (from) { state.source = from[1]; continue; }
+
+    if (/^where\b/i.test(text)) {
+      parseWherePredicates(text.slice(5), state, () => String((filterSeq += 1)));
+      continue;
+    }
+
+    if (/^summarize\b/i.test(text)) {
+      parseSummarizeClause(text.slice("summarize".length), state, () => String((aggregateSeq += 1)));
+      continue;
+    }
+
+    const sort = text.match(/^sort\s+(?:by\s+)?([A-Za-z_][A-Za-z0-9_.]*)(?:\s+(asc|desc))?$/i);
+    if (sort) {
+      if (!state.isAggregate && isLqlIdentifier(sort[1])) state.sortField = sort[1];
+      if (sort[2]) state.sortDir = sort[2].toLowerCase() as "asc" | "desc";
+      continue;
+    }
+
+    const take = text.match(/^(?:take|limit)\s+(\d+)$/i);
+    if (take) state.limit = Math.min(10_000, Math.max(1, Math.trunc(Number(take[1]))));
+  }
+  return state;
 }
