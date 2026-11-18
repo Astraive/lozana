@@ -53,4 +53,19 @@ describe("LQL query contract", () => {
     expect(() => buildVisualLql({ ...baseState, source: "events | take 1" })).toThrow("invalid LQL identifier");
     expect(() => buildVisualLql({ ...baseState, timePreset: "1 hour" })).toThrow("invalid LQL duration");
   });
+
+  it("rejects filter operators outside the allowlist to prevent LQL injection", () => {
+    const rehydrated = (operator: string): VisualQueryState => ({
+      ...baseState,
+      filters: [{ id: "1", field: "service", operator: operator as VisualQueryState["filters"][number]["operator"], value: "api" }],
+    });
+
+    expect(() => buildVisualLql(rehydrated("= \"x\" | take 999 | from secrets"))).toThrow("invalid LQL filter operator");
+    expect(() => buildVisualLql(rehydrated("==="))).toThrow("invalid LQL filter operator");
+    expect(() => buildVisualLql(rehydrated("contains | take 1"))).toThrow("invalid LQL filter operator");
+
+    for (const operator of ["=", "!=", "contains", ">", "<", ">=", "<="]) {
+      expect(() => buildVisualLql(rehydrated(operator))).not.toThrow();
+    }
+  });
 });
