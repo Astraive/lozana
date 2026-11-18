@@ -7,30 +7,132 @@ function generateRequestId(): string {
   return "req_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now().toString(36);
 }
 
-export function getCollectorUrl(): string {
+const HTTP_PROTOCOLS = new Set(["http:", "https:"]);
+
+function normalizedOriginKey(url: URL): string {
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const port = url.port || (url.protocol === "https:" || url.protocol === "wss:" ? "443" : "80");
+  return `${host}:${port}`;
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    /^127(?:\.\d{1,3}){3}$/.test(host) ||
+    host === "::1" ||
+    host === "0:0:0:0:0:0:0:1" ||
+    host === "::ffff:127.0.0.1"
+  );
+}
+
+/**
+ * Origins that may be used as an HTTP endpoint. Same-origin, the build-time
+ * configured service URLs and VITE_LOZANA_ALLOWED_ORIGINS are trusted; any
+ * other non-loopback value written to localStorage is discarded.
+ */
+function allowedOriginKeys(): Set<string> {
+  const keys = new Set<string>();
+  const add = (value: string | null | undefined): void => {
+    if (!value) return;
+    try {
+      keys.add(normalizedOriginKey(new URL(value)));
+    } catch {
+      // Ignore malformed entries.
+    }
+  };
+
   try {
-    const storeUrl = useAppStore.getState().collectorUrl;
-    if (storeUrl) return storeUrl;
+    if (typeof window !== "undefined") add(window.location?.origin);
+  } catch {
+    // No browser location available.
+  }
+  add(import.meta.env.VITE_LOZANA_API_URL as string | undefined);
+  add(import.meta.env.VITE_CORTEX_URL as string | undefined);
+  for (const entry of String(
+    (import.meta.env.VITE_LOZANA_ALLOWED_ORIGINS as string | undefined) ?? ""
+  ).split(/[\s,]+/)) {
+    add(entry);
+  }
+  return keys;
+}
+
+/** Validate/sanitize a configured HTTP base URL before it becomes a target. */
+export function validateBaseUrl(rawUrl: string): URL {
+  if (typeof rawUrl !== "string" || !rawUrl.trim()) {
+    throw new Error("Endpoint URL is required");
+  }
+  const url = new URL(rawUrl.trim());
+  if (!HTTP_PROTOCOLS.has(url.protocol)) {
+    throw new Error(`Endpoint URL must use http or https; received ${url.protocol}`);
+  }
+  if (url.username || url.password) {
+    throw new Error("Endpoint URL must not contain credentials");
+  }
+  if (!isLoopbackHost(url.hostname) && !allowedOriginKeys().has(normalizedOriginKey(url))) {
+    throw new Error(`Endpoint origin ${normalizedOriginKey(url)} is not allowed`);
+  }
+  return url;
+}
+
+function resolveBaseUrl(
+  candidates: readonly (string | null | undefined)[],
+  fallback: string
+): string {
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== "string") continue;
+    const url = candidate.trim();
+    try {
+      validateBaseUrl(url);
+      return url.replace(/\/+$/, "");
+    } catch {
+      // Reject malformed or untrusted configured URLs.
+    }
+  }
+  return fallback;
+}
+
+/** Bearer credentials may only be sent over TLS or to a local loopback host. */
+export function isCredentialSafeTarget(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl);
+    return url.protocol === "https:" || (url.protocol === "http:" && isLoopbackHost(url.hostname));
+  } catch {
+    return false;
+  }
+}
+
+export function getCollectorUrl(): string {
+  let storeUrl: string | null = null;
+  try {
+    storeUrl = useAppStore.getState().collectorUrl;
   } catch {
     // fallback outside react context
   }
-  return (
-    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-collector-url") : null) ||
-    (import.meta.env.VITE_LOZANA_API_URL as string) ||
+  return resolveBaseUrl(
+    [
+      storeUrl,
+      typeof localStorage !== "undefined" ? localStorage.getItem("loza-collector-url") : null,
+      import.meta.env.VITE_LOZANA_API_URL as string | undefined,
+    ],
     "http://localhost:9308"
   );
 }
 
 export function getCortexUrl(): string {
+  let storeUrl: string | null = null;
   try {
-    const storeUrl = useAppStore.getState().cortexUrl;
-    if (storeUrl) return storeUrl;
+    storeUrl = useAppStore.getState().cortexUrl;
   } catch {
     // fallback
   }
-  return (
-    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-cortex-url") : null) ||
-    (import.meta.env.VITE_CORTEX_URL as string) ||
+  return resolveBaseUrl(
+    [
+      storeUrl,
+      typeof localStorage !== "undefined" ? localStorage.getItem("loza-cortex-url") : null,
+      import.meta.env.VITE_CORTEX_URL as string | undefined,
+    ],
     "http://localhost:9312"
   );
 }
@@ -76,6 +178,19 @@ export function getApiKey(): string {
 }
 
 /**
+ * Cortex is a separate trust domain. Its credential (if any) is deliberately
+ * distinct from the collector key so a collector secret is never forwarded to
+ * the Cortex service. Set it via loza-cortex-api-key / VITE_CORTEX_API_KEY.
+ */
+export function getCortexApiKey(): string {
+  return (
+    (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("loza-cortex-api-key") : null) ||
+    (import.meta.env.VITE_CORTEX_API_KEY as string | undefined) ||
+    ""
+  );
+}
+
+/**
  * Resolves scoped collector paths:
  * If activeCollector is "edge-1" and path is "/lql/query", returns "/collectors/edge-1/lql/query".
  * If path already starts with "/collectors/" or is unscoped/global like "/health", leaves it as is.
@@ -103,17 +218,28 @@ export function resolveCollectorPath(path: string): string {
   return path;
 }
 
-function buildHeaders(init?: RequestInit): Headers {
+/** Headers shared by every JSON request. No credential is attached here. */
+function buildBaseHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   headers.set("X-Request-Id", generateRequestId());
+  return headers;
+}
 
-  const key = getApiKey();
-  if (key) {
-    headers.set("Authorization", `Bearer ${key}`);
-  }
+function attachBearer(headers: Headers, token: string, baseUrl: string): void {
+  if (!token || !isCredentialSafeTarget(baseUrl)) return;
+  headers.set("Authorization", `Bearer ${token}`);
+}
+
+/**
+ * Collector-scoped headers. Only these may carry the collector API key and
+ * the collector tenancy headers, and only to a validated collector target.
+ */
+function buildCollectorHeaders(baseUrl: string, init?: RequestInit): Headers {
+  const headers = buildBaseHeaders(init);
+  attachBearer(headers, getApiKey(), baseUrl);
 
   const env = getActiveEnvironment();
   if (env && env !== "all") {
@@ -125,6 +251,18 @@ function buildHeaders(init?: RequestInit): Headers {
     headers.set("X-Loza-Collector", collector);
   }
 
+  return headers;
+}
+
+/**
+ * Cortex-scoped headers. Cortex is a different trust domain: the collector key
+ * and collector tenancy headers MUST NOT be forwarded to it.
+ */
+function buildCortexHeaders(baseUrl: string, init?: RequestInit): Headers {
+  const headers = buildBaseHeaders(init);
+  // A credential meant for the collector must never travel to Cortex.
+  headers.delete("Authorization");
+  attachBearer(headers, getCortexApiKey(), baseUrl);
   return headers;
 }
 
@@ -145,7 +283,7 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
   try {
     const res = await fetch(`${baseUrl}${resolvedPath}`, {
       ...init,
-      headers: buildHeaders(init),
+      headers: buildCollectorHeaders(baseUrl, init),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -195,7 +333,7 @@ export async function fetchCortexJSON<T>(path: string, init?: RequestInit): Prom
   try {
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
-      headers: buildHeaders(init),
+      headers: buildCortexHeaders(baseUrl, init),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -227,7 +365,7 @@ export async function testCollectorConnection(): Promise<{
   try {
     const res = await fetch(`${baseUrl}/health`, {
       method: "GET",
-      headers: buildHeaders(),
+      headers: buildCollectorHeaders(baseUrl),
       signal: AbortSignal.timeout(5000),
     });
     const latencyMs = Math.round(performance.now() - start);
@@ -260,7 +398,7 @@ export async function testCortexConnection(): Promise<{
     // Try healthz or root
     const res = await fetch(`${baseUrl}/healthz`, {
       method: "GET",
-      headers: buildHeaders(),
+      headers: buildCortexHeaders(baseUrl),
       signal: AbortSignal.timeout(5000),
     });
     const latencyMs = Math.round(performance.now() - start);

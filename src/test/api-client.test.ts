@@ -1,5 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fetchJSON, postJSON, resolveCollectorPath, getCollectorUrl, getCortexUrl } from "@/lib/api/client";
+import {
+  fetchJSON,
+  postJSON,
+  resolveCollectorPath,
+  getCollectorUrl,
+  getCortexUrl,
+  fetchCortexJSON,
+  postCortexJSON,
+  testCollectorConnection,
+  testCortexConnection,
+  validateBaseUrl,
+  isCredentialSafeTarget,
+} from "@/lib/api/client";
 import { listDatabaseConnections, queryDatabase } from "@/lib/api/events";
 import { queryClient, scopedQueryKey } from "@/lib/query-client";
 import {
@@ -7,6 +19,24 @@ import {
   selectPersistedAppState,
   useAppStore,
 } from "@/stores/app.store";
+
+function createMemoryStorage(): Storage {
+  const data = new Map<string, string>();
+  return {
+    get length() {
+      return data.size;
+    },
+    clear: () => data.clear(),
+    getItem: (key: string) => data.get(key) ?? null,
+    key: (index: number) => Array.from(data.keys())[index] ?? null,
+    removeItem: (key: string) => {
+      data.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      data.set(key, String(value));
+    },
+  };
+}
 
 describe("API Client & Scoped Routing", () => {
   beforeEach(() => {
@@ -19,6 +49,7 @@ describe("API Client & Scoped Routing", () => {
       apiKey: "",
       queryScopeRevision: 0,
     });
+    vi.stubGlobal("sessionStorage", createMemoryStorage());
     vi.restoreAllMocks();
   });
 
@@ -130,5 +161,94 @@ describe("API Client & Scoped Routing", () => {
     const abortListener = add.mock.calls.find(([event]) => event === "abort")?.[1];
     expect(abortListener).toBeDefined();
     expect(remove).toHaveBeenCalledWith("abort", abortListener);
+  });
+
+  describe("per-service credential scoping", () => {
+    const okResponse = { ok: true, json: async () => ({ ok: true }) } as Response;
+
+    it("never forwards the collector key to the Cortex service", async () => {
+      useAppStore.setState({ apiKey: "lz_collector_secret" });
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse);
+
+      await fetchCortexJSON("/graph/service");
+      await postCortexJSON("/reconstruct", { incident_id: "inc-1" });
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      for (const call of fetchMock.mock.calls) {
+        const headers = new Headers(call[1]?.headers);
+        expect(headers.has("Authorization")).toBe(false);
+        expect(headers.has("X-Loza-Collector")).toBe(false);
+        expect(headers.has("X-Loza-Env")).toBe(false);
+      }
+    });
+
+    it("keeps the collector key on collector requests", async () => {
+      useAppStore.setState({ apiKey: "lz_collector_secret", activeCollector: "edge-1" });
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse);
+
+      await fetchJSON("/health");
+
+      const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+      expect(headers.get("Authorization")).toBe("Bearer lz_collector_secret");
+      expect(headers.get("X-Loza-Collector")).toBe("edge-1");
+    });
+
+    it("drops a caller-supplied bearer header before calling Cortex", async () => {
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse);
+
+      await fetchCortexJSON("/incidents", { headers: { Authorization: "Bearer lz_collector_secret" } });
+
+      const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+      expect(headers.has("Authorization")).toBe(false);
+    });
+
+    it("uses only a distinct Cortex token for Cortex requests", async () => {
+      useAppStore.setState({ apiKey: "lz_collector_secret" });
+      sessionStorage.setItem("loza-cortex-api-key", "cortex_only_token");
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse);
+
+      await fetchCortexJSON("/incidents");
+      await fetchJSON("/health");
+
+      const cortexHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+      const collectorHeaders = new Headers(fetchMock.mock.calls[1]?.[1]?.headers);
+      expect(cortexHeaders.get("Authorization")).toBe("Bearer cortex_only_token");
+      expect(collectorHeaders.get("Authorization")).toBe("Bearer lz_collector_secret");
+    });
+
+    it("does not attach the collector key to Cortex connection tests", async () => {
+      useAppStore.setState({ apiKey: "lz_collector_secret" });
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(okResponse);
+
+      await testCortexConnection();
+      await testCollectorConnection();
+
+      expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).has("Authorization")).toBe(false);
+      expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Authorization")).toBe(
+        "Bearer lz_collector_secret"
+      );
+    });
+  });
+
+  describe("endpoint URL validation", () => {
+    it("rejects unsafe or untrusted configured base URLs", () => {
+      expect(() => validateBaseUrl("javascript:alert(1)")).toThrow();
+      expect(() => validateBaseUrl("data:text/html,hi")).toThrow();
+      expect(() => validateBaseUrl("https://user:pass@collector.example.com")).toThrow();
+      expect(() => validateBaseUrl("http://attacker.example.com")).toThrow();
+      expect(validateBaseUrl("http://localhost:9308").hostname).toBe("localhost");
+    });
+
+    it("discards a tampered stored URL instead of using it as a request target", () => {
+      useAppStore.setState({ collectorUrl: "javascript:alert(1)" });
+      expect(getCollectorUrl()).toBe("http://localhost:9308");
+    });
+
+    it("withholds bearer credentials from plaintext non-loopback targets", () => {
+      expect(isCredentialSafeTarget("http://localhost:9308")).toBe(true);
+      expect(isCredentialSafeTarget("https://collector.example.com")).toBe(true);
+      expect(isCredentialSafeTarget("http://attacker.example.com")).toBe(false);
+      expect(isCredentialSafeTarget("not-a-url")).toBe(false);
+    });
   });
 });
