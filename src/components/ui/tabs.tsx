@@ -69,13 +69,19 @@ interface TabsTriggerProps
   value: string
 }
 
-function TabsTrigger({ className, value, ...props }: TabsTriggerProps) {
+function TabsTrigger({ className, value, onClick, ...props }: TabsTriggerProps) {
   const { value: selectedValue, onValueChange } =
     React.useContext(TabsContext)
   const isActive = selectedValue === value
 
+  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+    onClick?.(event)
+    onValueChange(value)
+  }
+
   return (
     <button
+      {...props}
       type="button"
       role="tab"
       aria-selected={isActive}
@@ -85,8 +91,7 @@ function TabsTrigger({ className, value, ...props }: TabsTriggerProps) {
         !isActive && "hover:text-foreground hover:bg-muted/80",
         className
       )}
-      onClick={() => onValueChange(value)}
-      {...props}
+      onClick={handleClick}
     />
   )
 }
