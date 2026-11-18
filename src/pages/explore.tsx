@@ -9,6 +9,7 @@ import { useAppStore } from "@/stores/app.store";
 import { registerLqlLanguage, LQL_LANGUAGE_ID } from "@/lib/lql/monaco-lql";
 import { registerLqlCompletionProvider } from "@/lib/lql/completion-provider";
 import { resolveUrlQuerySync } from "@/lib/url-query-sync";
+import { resolveMetricValue } from "@/lib/timeseries-data";
 import { VisualQueryBuilder } from "@/components/lql/VisualQueryBuilder";
 import { QuerySnippetsDrawer } from "@/components/lql/QuerySnippetsDrawer";
 import { QueryHistoryDrawer } from "@/components/lql/QueryHistoryDrawer";
@@ -229,7 +230,7 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
   // Convert row data to chart-friendly format for time series
   const timeSeriesData = rows.map((r) => ({
     timestamp: String(r.bin || r.bin_timestamp || r.timestamp || ""),
-    value: Number(r.event_count || r.count_ || r.count || r.p95_duration_ms || r.duration_ms || 0),
+    value: resolveMetricValue(r),
     service: String(r.service || "events"),
   }));
 
