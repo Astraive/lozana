@@ -1,5 +1,8 @@
 import { PanelWrapper } from "./PanelWrapper";
 import type { Panel } from "@/types/dashboard";
+import { resolveStatTargetKey, sparklineValue } from "@/lib/stat-panel-values";
+
+export { resolveStatTargetKey, sparklineValue } from "@/lib/stat-panel-values";
 
 interface StatPanelProps {
   panel: Panel;
@@ -22,14 +25,12 @@ export function StatPanel({ panel, onEdit, onDelete, onDuplicate }: StatPanelPro
 
         const rows = data?.rows ?? [];
         let val: number | string = "0";
+        let targetKey = "";
 
         if (rows.length > 0) {
           const firstRow = rows[0];
-          const keys = Object.keys(firstRow);
-          // Find first numeric or count field
-          const targetKey =
-            keys.find((k) => k.includes("count") || k.includes("p95") || k.includes("avg") || k.includes("val") || k.includes("dcount")) ||
-            keys[0];
+          // Find first numeric or count field (same column drives the sparkline).
+          targetKey = resolveStatTargetKey(firstRow);
           val = firstRow[targetKey] as number | string;
         }
 
@@ -74,7 +75,7 @@ export function StatPanel({ panel, onEdit, onDelete, onDuplicate }: StatPanelPro
             {panel.visualization?.sparkline && rows.length > 1 && (
               <div className="w-full h-8 mt-2 flex items-end justify-center gap-1 opacity-75">
                 {rows.slice(0, 20).map((r, i) => {
-                  const rVal = Number(Object.values(r)[0] || 1);
+                  const rVal = sparklineValue(r, targetKey);
                   return (
                     <div
                       key={i}
