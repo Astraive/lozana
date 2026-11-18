@@ -1,6 +1,11 @@
 import * as React from "react"
 import { cn } from "@/lib/cn"
 
+// A delimiter-free, unambiguous key for an (x, y) cell. Using a plain
+// `${x}:${y}` concatenation collides whenever a label contains the delimiter
+// (e.g. x="a:b",y="c" and x="a",y="b:c" both produce "a:b:c").
+const cellKey = (x: string, y: string) => JSON.stringify([x, y])
+
 interface HeatmapDataPoint {
   x: string
   y: string
@@ -52,7 +57,7 @@ export function HeatmapChart({
 
   const dataMap = React.useMemo(() => {
     const map = new Map<string, number>()
-    data.forEach((d) => map.set(`${d.x}:${d.y}`, d.value))
+    data.forEach((d) => map.set(cellKey(d.x, d.y), d.value))
     return map
   }, [data])
 
@@ -97,10 +102,10 @@ export function HeatmapChart({
           >
             {yLabels.map((y) =>
               xLabels.map((x) => {
-                const value = dataMap.get(`${x}:${y}`) ?? 0
+                const value = dataMap.get(cellKey(x, y)) ?? 0
                 return (
                   <div
-                    key={`${x}:${y}`}
+                    key={cellKey(x, y)}
                     className="rounded-sm cursor-default transition-all duration-150 hover:ring-1 hover:ring-primary hover:ring-offset-1 hover:ring-offset-background"
                     style={{
                       backgroundColor: getColor(value),
