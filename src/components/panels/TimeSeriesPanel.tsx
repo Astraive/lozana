@@ -1,5 +1,6 @@
 import { PanelWrapper } from "./PanelWrapper";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
+import { buildTimeSeriesData } from "@/lib/timeseries-data";
 import type { Panel } from "@/types/dashboard";
 
 interface TimeSeriesPanelProps {
@@ -30,14 +31,7 @@ export function TimeSeriesPanel({ panel, onEdit, onDelete, onDuplicate }: TimeSe
           );
         }
 
-        const chartData = rows.map((r) => {
-          const timestamp = String(r.bin || r.bin_timestamp || r.timestamp || "");
-          const value = Number(
-            r.event_count || r.count_ || r.count || r.p95_duration_ms || r.p99_duration_ms || r.duration_ms || Object.values(r)[1] || 0
-          );
-          const service = String(r.service || r.status_code || "series");
-          return { timestamp, value, service };
-        });
+        const chartData = buildTimeSeriesData(rows, panel.visualization?.yField);
 
         return (
           <div className="flex-1 min-h-[160px] w-full">
