@@ -47,4 +47,13 @@ describe("Dashboard Storage & Starter Presets", () => {
       "missing title or panels array"
     );
   });
+
+  it("throws a validation error for malformed panels instead of a TypeError", () => {
+    const badPanels = [null, undefined, "panel", 42, []];
+    for (const panel of badPanels) {
+      expect(() =>
+        importDashboardJson(JSON.stringify({ title: "x", panels: [panel] }))
+      ).toThrow("Invalid dashboard JSON format");
+    }
+  });
 });
