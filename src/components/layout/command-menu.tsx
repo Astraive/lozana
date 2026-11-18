@@ -1,6 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useReducer, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/cn"
+import {
+  createInitialMenuState,
+  menuReducer,
+} from "@/components/layout/command-menu-state"
 import {
   Dialog,
   DialogContent,
@@ -44,9 +48,8 @@ const COMMANDS: Command[] = [
 ]
 
 export function CommandMenu() {
-  const [open, setOpen] = useState(false)
-  const [filter, setFilter] = useState("")
-  const [activeIndex, setActiveIndex] = useState(0)
+  const [state, dispatch] = useReducer(menuReducer, undefined, createInitialMenuState)
+  const { open, filter, activeIndex } = state
   const navigate = useNavigate()
   const listRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -55,7 +58,7 @@ export function CommandMenu() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault()
-        setOpen((v) => !v)
+        dispatch({ type: "toggle" })
       }
     }
     window.addEventListener("keydown", handler)
@@ -80,7 +83,7 @@ export function CommandMenu() {
   const executeCommand = useCallback(
     (cmd: Command) => {
       navigate(cmd.href)
-      setOpen(false)
+      dispatch({ type: "close" })
     },
     [navigate]
   )
@@ -90,11 +93,11 @@ export function CommandMenu() {
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault()
-          setActiveIndex((prev) => Math.min(prev + 1, filtered.length - 1))
+          dispatch({ type: "setActiveIndex", activeIndex: Math.min(activeIndex + 1, filtered.length - 1) })
           break
         case "ArrowUp":
           e.preventDefault()
-          setActiveIndex((prev) => Math.max(prev - 1, 0))
+          dispatch({ type: "setActiveIndex", activeIndex: Math.max(activeIndex - 1, 0) })
           break
         case "Enter":
           e.preventDefault()
@@ -103,7 +106,7 @@ export function CommandMenu() {
           }
           break
         case "Escape":
-          setOpen(false)
+          dispatch({ type: "close" })
           break
       }
     },
@@ -121,11 +124,7 @@ export function CommandMenu() {
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
-        setOpen(nextOpen)
-        if (nextOpen) {
-          setFilter("")
-          setActiveIndex(0)
-        }
+        dispatch({ type: "setOpen", open: nextOpen })
       }}
     >
       <DialogContent className="overflow-hidden border-border bg-card p-0 shadow-2xl shadow-black/40 sm:max-w-lg">
@@ -139,8 +138,7 @@ export function CommandMenu() {
           <Input
             value={filter}
             onChange={(e) => {
-              setFilter(e.target.value)
-              setActiveIndex(0)
+              dispatch({ type: "setFilter", filter: e.target.value })
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type a command..."
@@ -180,7 +178,7 @@ export function CommandMenu() {
                               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                           )}
                           onClick={() => executeCommand(cmd)}
-                          onMouseEnter={() => setActiveIndex(index)}
+                          onMouseEnter={() => dispatch({ type: "setActiveIndex", activeIndex: index })}
                         >
                           <cmd.icon
                             className={cn(
