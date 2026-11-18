@@ -32,10 +32,36 @@ interface JsonNodeProps {
   value: unknown
   depth: number
   defaultExpanded: boolean
+  /** Object/array references on the current path, used to detect cycles. */
+  ancestors?: Set<object>
 }
 
-function JsonNode({ keyName, value, depth, defaultExpanded }: JsonNodeProps) {
+// Build a fresh path set for children so sibling branches that share a
+// reference are not mistaken for a cycle; only true ancestors are tracked.
+function withAncestor(ancestors: Set<object> | undefined, value: object): Set<object> {
+  const next = new Set<object>(ancestors)
+  next.add(value)
+  return next
+}
+
+function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNodeProps) {
   const [expanded, setExpanded] = React.useState(defaultExpanded)
+
+  // A reference already present on the current path closes a cycle. Render a
+  // placeholder instead of recursing forever (which overflows the stack).
+  if (typeof value === "object" && value !== null && ancestors?.has(value)) {
+    return (
+      <div style={{ paddingLeft: depth * 16 }}>
+        {keyName !== undefined && (
+          <>
+            <SyntaxSpan type="key">"{keyName}"</SyntaxSpan>
+            <SyntaxSpan type="colon">: </SyntaxSpan>
+          </>
+        )}
+        <SyntaxSpan type="null">[Circular]</SyntaxSpan>
+      </div>
+    )
+  }
 
   if (value === null) {
     return (
@@ -94,6 +120,7 @@ function JsonNode({ keyName, value, depth, defaultExpanded }: JsonNodeProps) {
   }
 
   if (Array.isArray(value)) {
+    const childAncestors = withAncestor(ancestors, value)
     if (value.length === 0) {
       return (
         <div style={{ paddingLeft: depth * 16 }}>
@@ -135,6 +162,7 @@ function JsonNode({ keyName, value, depth, defaultExpanded }: JsonNodeProps) {
                 value={item}
                 depth={depth + 1}
                 defaultExpanded={defaultExpanded}
+                ancestors={childAncestors}
               />
             ))}
             <SyntaxSpan type="bracket">]</SyntaxSpan>
@@ -145,6 +173,7 @@ function JsonNode({ keyName, value, depth, defaultExpanded }: JsonNodeProps) {
   }
 
   if (typeof value === "object") {
+    const childAncestors = withAncestor(ancestors, value)
     const entries = Object.entries(value as Record<string, unknown>)
     if (entries.length === 0) {
       return (
@@ -188,6 +217,7 @@ function JsonNode({ keyName, value, depth, defaultExpanded }: JsonNodeProps) {
                 value={v}
                 depth={depth + 1}
                 defaultExpanded={defaultExpanded}
+                ancestors={childAncestors}
               />
             ))}
             <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>
@@ -225,7 +255,7 @@ export function JsonViewer({ data, expanded = true, className }: JsonViewerProps
         <CopyButton text={jsonString} />
       </div>
       <div className="rounded-lg border border-border bg-card/50 p-4 overflow-auto font-mono text-sm leading-relaxed">
-        <JsonNode value={data} depth={0} defaultExpanded={expanded} />
+        <JsonNode value={data} depth={0} defaultExpanded={expanded} ancestors={new Set()} />
       </div>
     </div>
   )
