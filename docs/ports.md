@@ -29,9 +29,13 @@ Lozana uses Vite environment variables for configuration. Set via `.env` file or
 ```bash
 VITE_LOZANA_API_URL=http://localhost:9308
 VITE_LOZANA_WS_URL=ws://localhost:9308
-VITE_LOZA_API_KEY=
 VITE_CORTEX_URL=http://localhost:9312
+
+# Server-only: used by the Vite dev proxy, never exposed to the browser.
+LOZA_API_KEY=
 ```
+
+`VITE_*` variables are inlined into the client bundle. `LOZA_API_KEY` has no `VITE_` prefix, so it stays in the Node process and is attached to proxied collector requests as an `Authorization` header. `VITE_LOZA_API_KEY` is no longer supported; in production, inject the header at the reverse proxy instead of in the SPA.
 
 ### Docker
 
