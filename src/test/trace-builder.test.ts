@@ -63,6 +63,80 @@ describe("Trace Tree Builder", () => {
     }
   });
 
+  it("preserves each root span when no hierarchy is declared", () => {
+    const events = [
+      {
+        trace_id: "tr_flat",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        service: "svc-a",
+        event: "alpha",
+        span_id: "span-a",
+        duration_ms: 20,
+      },
+      {
+        trace_id: "tr_flat",
+        timestamp: "2026-01-01T00:00:00.010Z",
+        service: "svc-b",
+        event: "beta",
+        span_id: "span-b",
+        duration_ms: 30,
+      },
+      {
+        trace_id: "tr_flat",
+        timestamp: "2026-01-01T00:00:00.020Z",
+        service: "svc-c",
+        event: "gamma",
+        span_id: "span-c",
+        duration_ms: 40,
+      },
+    ];
+
+    const tree = buildTraceTree(events);
+
+    expect(tree.root_spans.length).toBe(events.length);
+    expect(tree.root_spans.map((root) => root.span_id)).toEqual([
+      "span-a",
+      "span-b",
+      "span-c",
+    ]);
+    for (const root of tree.root_spans) {
+      expect(root.depth).toBe(0);
+      expect(root.children.length).toBe(0);
+      expect(root.parent_span_id).toBeUndefined();
+      expect(root.is_critical_path).toBe(true);
+    }
+  });
+
+  it("does not collapse spans with unresolvable parents into one root", () => {
+    const events = [
+      {
+        trace_id: "tr_orphan",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        service: "svc-a",
+        event: "root",
+        span_id: "span-root",
+      },
+      {
+        trace_id: "tr_orphan",
+        timestamp: "2026-01-01T00:00:00.010Z",
+        service: "svc-b",
+        event: "orphan",
+        span_id: "span-orphan",
+        parent_span_id: "missing-parent",
+      },
+    ];
+
+    const tree = buildTraceTree(events);
+
+    expect(tree.root_spans.length).toBe(2);
+    expect(tree.root_spans.map((root) => root.span_id)).toEqual([
+      "span-root",
+      "span-orphan",
+    ]);
+    expect(tree.root_spans.every((root) => root.depth === 0)).toBe(true);
+    expect(tree.all_spans.every((span) => span.children.length === 0)).toBe(true);
+  });
+
   it("handles empty events safely", () => {
     const emptyTree = buildTraceTree([]);
     expect(emptyTree.span_count).toBe(0);
