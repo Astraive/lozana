@@ -17,7 +17,7 @@ export function LogStreamPanel({ panel, onEdit, onDelete, onDuplicate }: LogStre
   const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
-    <PanelWrapper panel={panel} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate}>
+    <PanelWrapper panel={panel} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} enabled={!paused}>
       {(data, isLoading) => {
         if (isLoading) {
           return (
