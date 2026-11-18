@@ -54,15 +54,22 @@ docker run -p 80:80 lozana
 
 ## Configuration
 
-Environment variables (prefix `VITE_`):
+Client variables (prefix `VITE_`). These are embedded in the browser bundle at build time, so never put secrets in them:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VITE_LOZANA_API_URL` | Collector API URL | `http://localhost:9308` |
 | `VITE_LOZANA_WS_URL` | WebSocket URL | `ws://localhost:9308` |
-| `VITE_LOZA_API_KEY` | API key for collector auth | (empty) |
+
+Server-only variables (never exposed to the browser):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOZA_API_KEY` | Collector API key injected by the Vite dev proxy as `Authorization: Bearer …` | (empty) |
 
 See `.env.example` for reference.
+
+> Migration: `VITE_LOZA_API_KEY` has been removed. Set `LOZA_API_KEY` for local development instead. In production, do not embed a key in the SPA — configure your reverse proxy or backend to add the `Authorization` header server-side.
 
 ## Routes
 
