@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildServiceExploreQuery, buildVisualLql, lqlStringLiteral, type VisualQueryState } from "@/lib/lql/query-contract";
+import { buildServiceExploreQuery, buildVisualLql, lqlStringLiteral, parseVisualLql, type VisualQueryState } from "@/lib/lql/query-contract";
 
 const baseState: VisualQueryState = {
   source: "events",
@@ -54,7 +54,6 @@ describe("LQL query contract", () => {
     expect(() => buildVisualLql({ ...baseState, timePreset: "1 hour" })).toThrow("invalid LQL duration");
   });
 
-<<<<<<< HEAD
   it("rejects filter operators outside the allowlist to prevent LQL injection", () => {
     const rehydrated = (operator: string): VisualQueryState => ({
       ...baseState,
@@ -68,7 +67,8 @@ describe("LQL query contract", () => {
     for (const operator of ["=", "!=", "contains", ">", "<", ">=", "<="]) {
       expect(() => buildVisualLql(rehydrated(operator))).not.toThrow();
     }
-=======
+  });
+
   it("escapes newlines and control characters so a literal cannot be broken out of", () => {
     const hasRawControl = (text: string) =>
       [...text].some((char) => {
@@ -91,7 +91,6 @@ describe("LQL query contract", () => {
       'from events | where service = "api\\"\\n| where 1 == 1\\r\\n\\u0000\\u2028" | sort timestamp desc | take 100',
     );
     expect(hasRawControl(query)).toBe(false);
->>>>>>> 9e48adb (fix(lql): escape newlines and control chars in string literals)
   });
 });
 
@@ -132,5 +131,93 @@ describe("service explore query", () => {
     expect(buildServiceExploreQuery("svc", { limit: 0 })).toContain("limit 1");
     expect(buildServiceExploreQuery("svc", { limit: 999_999 })).toContain("limit 10000");
     expect(buildServiceExploreQuery("svc", { limit: 5.9 })).toContain("limit 5");
+  });
+});
+
+describe("parseVisualLql (visual builder initialQuery)", () => {
+  it("rehydrates the time window, filters, sort and limit from an active query", () => {
+    const parsed = parseVisualLql(
+      'from events | where timestamp >= ago(24h) | where service = "api" | where level = "error" | sort service asc | take 50',
+    );
+
+    expect(parsed.source).toBe("events");
+    expect(parsed.timePreset).toBe("24h");
+    expect(parsed.filters).toEqual([
+      { id: "1", field: "service", operator: "=", value: "api" },
+      { id: "2", field: "level", operator: "=", value: "error" },
+    ]);
+    expect(parsed.sortField).toBe("service");
+    expect(parsed.sortDir).toBe("asc");
+    expect(parsed.limit).toBe(50);
+    expect(parsed.isAggregate).toBe(false);
+  });
+
+  it("rehydrates aggregate queries with grouping, time buckets and escaped values", () => {
+    const parsed = parseVisualLql(
+      'from events | where timestamp >= ago(6h) | where message contains "failed \\"hard\\"" | summarize event_count = count(), p95_duration = p95(duration_ms) by bin(timestamp, 5m), service | sort bin asc | take 25',
+    );
+
+    expect(parsed.timePreset).toBe("6h");
+    expect(parsed.filters).toEqual([
+      { id: "1", field: "message", operator: "contains", value: 'failed "hard"' },
+    ]);
+    expect(parsed.isAggregate).toBe(true);
+    expect(parsed.aggregates).toEqual([
+      { id: "1", fn: "count", field: "" },
+      { id: "2", fn: "p95", field: "duration_ms" },
+    ]);
+    expect(parsed.useTimeBucket).toBe(true);
+    expect(parsed.timeBucket).toBe("5m");
+    expect(parsed.groupByField).toBe("service");
+    expect(parsed.limit).toBe(25);
+  });
+
+  it("round-trips a builder-generated query without losing visual state", () => {
+    const original: VisualQueryState = {
+      ...baseState,
+      timePreset: "24h",
+      filters: [
+        { id: "a", field: "service", operator: "!=", value: "admin" },
+        { id: "b", field: "status_code", operator: ">=", value: "500" },
+      ],
+      isAggregate: true,
+      useTimeBucket: true,
+      aggregates: [{ id: "c", fn: "count", field: "" }],
+      groupByField: "route",
+      limit: 42,
+    };
+
+    const parsed = parseVisualLql(buildVisualLql(original));
+    expect(parsed.source).toBe(original.source);
+    expect(parsed.timePreset).toBe(original.timePreset);
+    expect(parsed.filters.map(({ field, operator, value }) => ({ field, operator, value }))).toEqual(
+      original.filters.map(({ field, operator, value }) => ({ field, operator, value })),
+    );
+    expect(parsed.isAggregate).toBe(true);
+    expect(parsed.aggregates.map(({ fn, field }) => ({ fn, field }))).toEqual(
+      original.aggregates.map(({ fn, field }) => ({ fn, field })),
+    );
+    expect(parsed.groupByField).toBe("route");
+    expect(parsed.useTimeBucket).toBe(true);
+    expect(parsed.limit).toBe(42);
+  });
+
+  it("keeps builder defaults for an absent query and never throws on malformed input", () => {
+    expect(parseVisualLql()).toEqual({
+      source: "events",
+      timePreset: "1h",
+      filters: [],
+      isAggregate: false,
+      aggregates: [{ id: "1", fn: "count", field: "" }],
+      groupByField: "service",
+      timeBucket: "5m",
+      useTimeBucket: false,
+      sortField: "timestamp",
+      sortDir: "desc",
+      limit: 100,
+    });
+    expect(parseVisualLql("this is not LQL | take ???").limit).toBe(100);
+    expect(parseVisualLql('from events | where service = "unterminated').filters).toEqual([]);
+    expect(parseVisualLql("from events | where 1 == 1 | take 50000").limit).toBe(10_000);
   });
 });
