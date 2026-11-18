@@ -33,8 +33,26 @@ interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButton
   asChild?: boolean
 }
 
+/**
+ * Compose a consumer-provided `onClick` with the internal open/close toggle.
+ *
+ * The consumer handler runs first; if it calls `preventDefault()` the toggle is
+ * skipped. Keeping this in a dedicated helper both prevents a supplied
+ * `onClick` from silently replacing the toggle through prop spreading and
+ * makes the composition independently testable without a DOM.
+ */
+export function composeTriggerClick(
+  onClick: React.MouseEventHandler<HTMLButtonElement> | undefined,
+  toggle: () => void
+): React.MouseEventHandler<HTMLButtonElement> {
+  return (event) => {
+    onClick?.(event)
+    if (!event.defaultPrevented) toggle()
+  }
+}
+
 const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(
-  ({ className, children, asChild, ...props }, ref) => {
+  ({ className, children, asChild, onClick, ...props }, ref) => {
     const { open, setOpen, triggerRef } = React.useContext(DropdownMenuContext)
     const mergedRef = React.useCallback(
       (node: HTMLButtonElement | null) => {
@@ -63,7 +81,7 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background", className)}
-        onClick={() => setOpen(!open)}
+        onClick={composeTriggerClick(onClick, () => setOpen(!open))}
         {...props}
       >
         {children}
