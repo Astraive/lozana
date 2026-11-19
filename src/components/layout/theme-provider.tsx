@@ -6,6 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react"
+import { readStoredValue, writeStoredValue } from "@/lib/storage"
 
 type Theme = "dark" | "light" | "system"
 
@@ -45,8 +46,7 @@ function applyTheme(resolved: "dark" | "light") {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "dark"
-    return (localStorage.getItem(STORAGE_KEY) as Theme) || "dark"
+    return (readStoredValue(STORAGE_KEY) as Theme) || "dark"
   })
   const [systemTheme, setSystemTheme] = useState<"dark" | "light">(getSystemTheme)
 
@@ -54,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
-    localStorage.setItem(STORAGE_KEY, newTheme)
+    writeStoredValue(STORAGE_KEY, newTheme)
   }, [])
 
   // Apply resolved theme to document
