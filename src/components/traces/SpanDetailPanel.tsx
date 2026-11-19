@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,16 @@ export function SpanDetailPanel({
 }: SpanDetailPanelProps) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [attrSearch, setAttrSearch] = useState("");
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimerRef.current !== null) {
+        clearTimeout(copyResetTimerRef.current);
+        copyResetTimerRef.current = null;
+      }
+    };
+  }, []);
 
   if (!span) return null;
 
@@ -74,7 +84,14 @@ export function SpanDetailPanel({
       onSuccess: () => {
         setCopiedKey(key);
         toast.success("Copied to clipboard");
-        setTimeout(() => setCopiedKey(null), 1500);
+
+        if (copyResetTimerRef.current !== null) {
+          clearTimeout(copyResetTimerRef.current);
+        }
+        copyResetTimerRef.current = setTimeout(() => {
+          copyResetTimerRef.current = null;
+          setCopiedKey(null);
+        }, 1500);
       },
       onError: () => {
         toast.error("Failed to copy to clipboard");
