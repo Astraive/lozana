@@ -425,7 +425,7 @@ export class LiveStreamClient {
       socket.onmessage = (event) => {
         if (this.ws !== socket) return;
         if (typeof event.data === "string") {
-          this.stats.bytesReceived += event.data.length;
+          this.stats.bytesReceived += new TextEncoder().encode(event.data).byteLength;
           this.processRawLine(event.data);
         }
       };

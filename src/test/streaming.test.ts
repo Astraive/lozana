@@ -258,6 +258,40 @@ describe("WebSocket tail contract", () => {
     client.disconnect();
   });
 
+  it("counts WebSocket payload bytes as UTF-8 bytes, not UTF-16 code units", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+
+    const utf8Bytes = new TextEncoder();
+    const payload = JSON.stringify({
+      event_id: "evt-multibyte",
+      timestamp: "2026-08-24T04:12:00Z",
+      service: "🚀 checkout café",
+    });
+    const expectedBytes = utf8Bytes.encode(payload).byteLength;
+    expect(expectedBytes).not.toBe(payload.length);
+
+    socket.message(payload);
+
+    expect(client.getStats().bytesReceived).toBe(expectedBytes);
+    client.disconnect();
+  });
+
   it("reports invalid regex filters without dropping valid events", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
