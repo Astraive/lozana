@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import {
   ResponsiveContainer,
   LineChart as RechartsLineChart,
@@ -9,6 +10,8 @@ import {
 } from "recharts"
 import { cn } from "@/lib/cn"
 
+type TooltipCursor = ComponentProps<typeof Tooltip>["cursor"]
+
 interface TimeSeriesChartProps {
   data: Record<string, unknown>[]
   xField: string
@@ -16,6 +19,10 @@ interface TimeSeriesChartProps {
   height?: number
   color?: string
   className?: string
+  /** Draw vertical CartesianGrid lines. Defaults to true. */
+  gridVertical?: boolean
+  /** Optional tooltip cursor styling (Recharts `Tooltip.cursor`). */
+  tooltipCursor?: TooltipCursor
 }
 
 export function TimeSeriesChart({
@@ -25,6 +32,8 @@ export function TimeSeriesChart({
   height = 300,
   color = "var(--primary)",
   className,
+  gridVertical = true,
+  tooltipCursor,
 }: TimeSeriesChartProps) {
   return (
     <div className={cn("w-full", className)}>
@@ -33,6 +42,7 @@ export function TimeSeriesChart({
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--border)"
+            vertical={gridVertical}
           />
           <XAxis
             dataKey={xField}
@@ -56,6 +66,7 @@ export function TimeSeriesChart({
             }}
             labelStyle={{ color: "var(--foreground)", marginBottom: 4 }}
             itemStyle={{ color: "var(--muted-foreground)" }}
+            cursor={tooltipCursor}
           />
           <Line
             type="monotone"

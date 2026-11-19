@@ -1,13 +1,4 @@
-import {
-  ResponsiveContainer,
-  LineChart as RechartsLineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
-import { cn } from "@/lib/cn";
+import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
 
 interface LozaLineChartProps {
   data: Record<string, unknown>[];
@@ -18,57 +9,32 @@ interface LozaLineChartProps {
   className?: string;
 }
 
+/**
+ * Backwards-compatible name for the shared Recharts line-chart wrapper.
+ *
+ * Rendering now lives in a single place (TimeSeriesChart). The only behavioral
+ * differences between the two former copies were the grid and tooltip cursor
+ * styling, which are expressed here through the shared component's optional
+ * props. The public props of this component are unchanged.
+ */
 export function LozaLineChart({
   data,
   xField,
   yField,
-  height = 300,
-  color = "var(--primary)",
+  height,
+  color,
   className,
 }: LozaLineChartProps) {
   return (
-    <div className={cn("w-full", className)}>
-    <ResponsiveContainer width="100%" height={height}>
-      <RechartsLineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="var(--border)"
-          vertical={false}
-        />
-        <XAxis
-          dataKey={xField}
-          tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius)",
-            fontSize: "0.75rem",
-            fontFamily: "var(--font-mono)",
-            boxShadow: "0 4px 12px rgba(50, 224, 196, 0.05)",
-          }}
-          labelStyle={{ color: "var(--foreground)", marginBottom: 4 }}
-          itemStyle={{ color: "var(--muted-foreground)" }}
-          cursor={{ stroke: "var(--border)" }}
-        />
-        <Line
-          type="monotone"
-          dataKey={yField}
-          stroke={color}
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 4, fill: color, stroke: "var(--background)", strokeWidth: 2 }}
-        />
-      </RechartsLineChart>
-    </ResponsiveContainer>
-    </div>
+    <TimeSeriesChart
+      data={data}
+      xField={xField}
+      yField={yField}
+      height={height}
+      color={color}
+      className={className}
+      gridVertical={false}
+      tooltipCursor={{ stroke: "var(--border)" }}
+    />
   );
 }
