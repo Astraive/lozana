@@ -29,6 +29,7 @@ export interface StreamStats {
   eventsPerSecond: number;
   bytesReceived: number;
   bufferSize: number;
+  bufferCapacity: number;
   droppedCount: number;
   connectedSince?: Date;
 }
@@ -168,6 +169,7 @@ export class LiveStreamClient {
     eventsPerSecond: 0,
     bytesReceived: 0,
     bufferSize: 0,
+    bufferCapacity: 1000,
     droppedCount: 0,
   };
 
@@ -198,6 +200,7 @@ export class LiveStreamClient {
     return {
       ...this.stats,
       bufferSize: this.ringBuffer.getSize(),
+      bufferCapacity: this.ringBuffer.getCapacity(),
     };
   }
 

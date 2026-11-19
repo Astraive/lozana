@@ -153,7 +153,7 @@ export function LiveTailView() {
             </Badge>
 
             <Badge variant="secondary" className="text-xs font-mono">
-              {stats.bufferSize} / {client.getStats().bufferSize} in buffer
+              {stats.bufferSize} / {stats.bufferCapacity} in buffer
             </Badge>
 
             {stats.droppedCount > 0 && (
@@ -199,7 +199,7 @@ export function LiveTailView() {
 
             {/* Buffer Size Selector */}
             <select
-              value={client.getStats().bufferSize || 1000}
+              value={stats.bufferCapacity}
               onChange={(e) => handleCapacityChange(Number(e.target.value))}
               className="h-7 rounded bg-background border border-input px-2 text-xs font-mono"
             >
