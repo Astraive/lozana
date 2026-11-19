@@ -49,6 +49,9 @@ export function composeTriggerClick(
     onClick?.(event)
     if (!event.defaultPrevented) toggle()
   }
+function applyRef<T>(ref: React.Ref<T> | undefined, node: T | null) {
+  if (typeof ref === "function") ref(node)
+  else if (ref) (ref as React.MutableRefObject<T | null>).current = node
 }
 
 const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(
@@ -64,14 +67,23 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
     )
 
     if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<{
+        onClick?: (e: React.MouseEvent) => void
+        ref?: React.Ref<HTMLButtonElement>
+      }>
       const childProps: Record<string, unknown> = {
-        ref: mergedRef,
+        // Keep any ref the consumer placed on the child instead of replacing
+        // it with the trigger's own ref when cloning.
+        ref: (node: HTMLButtonElement | null) => {
+          mergedRef(node)
+          applyRef(child.props.ref, node)
+        },
         onClick: (e: React.MouseEvent) => {
           setOpen(!open)
-          ;(children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>).props.onClick?.(e)
+          child.props.onClick?.(e)
         },
       }
-      return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, childProps)
+      return React.cloneElement(child, childProps)
     }
 
     return (
