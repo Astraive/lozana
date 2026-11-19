@@ -23,3 +23,43 @@ export function describeQueryError(error: unknown): string {
   const text = String(error);
   return text && text !== "[object Object]" ? text : "Unknown error";
 }
+
+type OptionsQuery = (query: string) => Promise<{ rows: Record<string, unknown>[] }>;
+
+type ApplyVariableOptions = (
+  name: string,
+  options: string[],
+  error: string | undefined
+) => void;
+
+/**
+ * Starts one option load per query variable for the current effect generation
+ * and returns its cleanup. Cleanup marks the generation stale so a late
+ * resolution - after `variables` changed or the component unmounted - cannot
+ * overwrite the options or errors currently shown.
+ */
+export function loadVariableOptions(
+  variables: DashboardVariable[],
+  queryLql: OptionsQuery,
+  apply: ApplyVariableOptions
+): () => void {
+  let cancelled = false;
+
+  for (const v of variables) {
+    if (v.type === "query" && v.query) {
+      queryLql(v.query)
+        .then((res) => {
+          if (cancelled) return;
+          apply(v.name, extractQueryOptions(res.rows), undefined);
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return;
+          apply(v.name, getVariableFallbackOptions(v), describeQueryError(error));
+        });
+    }
+  }
+
+  return () => {
+    cancelled = true;
+  };
+}
