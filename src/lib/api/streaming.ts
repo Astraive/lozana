@@ -5,6 +5,7 @@ import {
   getActiveEnvironment,
   getActiveCollector,
 } from "./client";
+import { validateEndpointUrl } from "./endpoint-policy";
 import type { LozaEvent } from "@/types/event";
 
 export type StreamConnectionStatus =
@@ -39,15 +40,15 @@ export type StreamStatusCallback = (status: StreamConnectionStatus, error?: stri
 export type StreamStatsCallback = (stats: StreamStats) => void;
 
 const TAIL_WEBSOCKET_PROTOCOL = "loza.tail.v1";
-const AUTH_WEBSOCKET_PROTOCOL_PREFIX = "loza.auth.v1.";
 
-export function buildWebSocketProtocols(credential: string): string[] {
-  if (!credential) return [TAIL_WEBSOCKET_PROTOCOL];
-  const bytes = new TextEncoder().encode(credential);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  const encoded = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  return [TAIL_WEBSOCKET_PROTOCOL, `${AUTH_WEBSOCKET_PROTOCOL_PREFIX}${encoded}`];
+/**
+ * WebSocket subprotocols are visible in the handshake and are often logged by
+ * proxies, so they must never carry credential material (base64 is reversible).
+ * Authenticated tail connections rely on a validated WSS endpoint and the
+ * browser's normal secure session; HTTP APIs send the key as a bearer header.
+ */
+export function buildWebSocketProtocols(): string[] {
+  return [TAIL_WEBSOCKET_PROTOCOL];
 }
 
 export function buildTailWebSocketUrl(
@@ -56,7 +57,10 @@ export function buildTailWebSocketUrl(
   environment: string,
   filters: StreamFilterOptions
 ): string {
-  const url = new URL(configuredUrl);
+  const url = validateEndpointUrl(configuredUrl, {
+    purpose: "websocket",
+    requireTls: Boolean(getApiKey()),
+  });
   if (url.protocol === "http:") url.protocol = "ws:";
   if (url.protocol === "https:") url.protocol = "wss:";
   if (url.protocol !== "ws:" && url.protocol !== "wss:") {
@@ -414,6 +418,7 @@ export class LiveStreamClient {
       }
 
       const socket = new WebSocket(url, buildWebSocketProtocols(credential));
+      const socket = new WebSocket(url, buildWebSocketProtocols());
       this.ws = socket;
       socket.onopen = () => {
         if (this.ws !== socket) return;

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clearStoredValue, readStoredValue, writeStoredValue } from "@/lib/storage";
+import { validateEndpointUrl, type EndpointPurpose } from "@/lib/api/endpoint-policy";
 import { removeScopeQueries } from "@/lib/query-client";
 
 export type Environment = "all" | "production" | "staging" | "dev";
@@ -53,6 +54,49 @@ const DEFAULT_WS_URL =
   readStoredValue("loza-ws-url") ||
   (import.meta.env.VITE_WS_URL as string) ||
   "ws://localhost:9308/ws/tail";
+/** Persisted state is writable by page scripts, so never trust it as-is. */
+function safeEndpoint(
+  candidate: unknown,
+  fallback: string,
+  purpose: EndpointPurpose
+): string {
+  if (typeof candidate === "string" && candidate.trim()) {
+    try {
+      validateEndpointUrl(candidate, { purpose });
+      return candidate.trim();
+    } catch {
+      // Discard an invalid or disallowed stored URL.
+    }
+  }
+  return fallback;
+}
+
+const DEFAULT_COLLECTOR_URL = safeEndpoint(
+  typeof window !== "undefined"
+    ? localStorage.getItem("loza-collector-url") ||
+      (import.meta.env.VITE_LOZANA_API_URL as string)
+    : null,
+  "http://localhost:9308",
+  "http"
+);
+
+const DEFAULT_CORTEX_URL = safeEndpoint(
+  typeof window !== "undefined"
+    ? localStorage.getItem("loza-cortex-url") ||
+      (import.meta.env.VITE_CORTEX_URL as string)
+    : null,
+  "http://localhost:9312",
+  "http"
+);
+
+const DEFAULT_WS_URL = safeEndpoint(
+  typeof window !== "undefined"
+    ? localStorage.getItem("loza-ws-url") ||
+      (import.meta.env.VITE_WS_URL as string)
+    : null,
+  "ws://localhost:9308/ws/tail",
+  "websocket"
+);
 
 // Pure read: initializing the store must never delete a stored key.
 const DEFAULT_API_KEY = readStoredValue("loza-api-key", "session") ?? "";
@@ -89,9 +133,9 @@ export function migratePersistedAppState(persistedState: unknown): PersistedAppS
       ? (persistedState as Partial<PersistedAppState>)
       : {};
   return {
-    collectorUrl: state.collectorUrl ?? DEFAULT_COLLECTOR_URL,
-    cortexUrl: state.cortexUrl ?? DEFAULT_CORTEX_URL,
-    wsUrl: state.wsUrl ?? DEFAULT_WS_URL,
+    collectorUrl: safeEndpoint(state.collectorUrl, DEFAULT_COLLECTOR_URL, "http"),
+    cortexUrl: safeEndpoint(state.cortexUrl, DEFAULT_CORTEX_URL, "http"),
+    wsUrl: safeEndpoint(state.wsUrl, DEFAULT_WS_URL, "websocket"),
     activeCollector: state.activeCollector ?? "",
     activeEnvironment: state.activeEnvironment ?? "all",
     activeDatabaseConnection: state.activeDatabaseConnection ?? "",
@@ -121,6 +165,7 @@ export const useAppStore = create<AppState>()(
 
       setCollectorUrl: (url) => {
         const cleanUrl = url.trim().replace(/\/+$/, "");
+        validateEndpointUrl(cleanUrl, { purpose: "http", requireTls: Boolean(get().apiKey) });
         if (get().collectorUrl === cleanUrl) return;
         writeStoredValue("loza-collector-url", cleanUrl);
         removeScopeQueries();
@@ -128,6 +173,7 @@ export const useAppStore = create<AppState>()(
       },
       setCortexUrl: (url) => {
         const cleanUrl = url.trim().replace(/\/+$/, "");
+        validateEndpointUrl(cleanUrl, { purpose: "http", requireTls: Boolean(get().apiKey) });
         if (get().cortexUrl === cleanUrl) return;
         writeStoredValue("loza-cortex-url", cleanUrl);
         removeScopeQueries();
@@ -136,6 +182,10 @@ export const useAppStore = create<AppState>()(
       setWsUrl: (url) => {
         const cleanUrl = url.trim();
         writeStoredValue("loza-ws-url", cleanUrl);
+        validateEndpointUrl(cleanUrl, { purpose: "websocket", requireTls: Boolean(get().apiKey) });
+        if (typeof window !== "undefined") {
+          localStorage.setItem("loza-ws-url", cleanUrl);
+        }
         set({ wsUrl: cleanUrl });
       },
       setApiKey: (key) => {

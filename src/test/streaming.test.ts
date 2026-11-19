@@ -101,6 +101,7 @@ class FakeWebSocket {
 afterEach(() => {
   FakeWebSocket.instances = [];
   vi.unstubAllGlobals();
+  useAppStore.setState({ apiKey: "" });
 });
 
 describe("WebSocket tail contract", () => {
@@ -117,12 +118,44 @@ describe("WebSocket tail contract", () => {
     );
   });
 
-  it("transports credentials in a non-echoed WebSocket subprotocol", () => {
-    expect(buildWebSocketProtocols("lz_sec_live_key")).toEqual([
-      "loza.tail.v1",
-      "loza.auth.v1.bHpfc2VjX2xpdmVfa2V5",
-    ]);
-    expect(buildWebSocketProtocols("")).toEqual(["loza.tail.v1"]);
+  it("rejects plaintext non-loopback tail URLs when a key is configured", () => {
+    useAppStore.setState({ apiKey: "lz_sec_live_key" });
+    expect(() =>
+      buildTailWebSocketUrl("ws://collector.example.com/ws/tail", "", "all", {})
+    ).toThrow(/https:\/\/ or wss:\/\//);
+    expect(() =>
+      buildTailWebSocketUrl("ws://localhost:9308/ws/tail", "", "all", {})
+    ).not.toThrow();
+  });
+
+  it("never places credential material in WebSocket subprotocols", () => {
+    expect(buildWebSocketProtocols()).toEqual(["loza.tail.v1"]);
+    expect(buildWebSocketProtocols().join(" ")).not.toContain("loza.auth.v1.");
+  });
+
+  it("opens the tail socket without credential-bearing subprotocols even with a key set", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "lz_secret_ws_key",
+      activeCollector: "",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+
+    expect(socket.protocols).toEqual(["loza.tail.v1"]);
+    expect(socket.protocols.join(" ")).not.toContain("lz_secret_ws_key");
+    expect(socket.protocols.some((protocol) => protocol.startsWith("loza.auth.v1."))).toBe(false);
+    client.disconnect();
   });
 
   it.each([

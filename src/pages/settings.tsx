@@ -171,9 +171,14 @@ export default function SettingsPage() {
   };
 
   const handleSave = () => {
-    store.setCollectorUrl(collectorUrl);
-    store.setCortexUrl(cortexUrl);
-    store.setWsUrl(wsUrl);
+    try {
+      store.setCollectorUrl(collectorUrl);
+      store.setCortexUrl(cortexUrl);
+      store.setWsUrl(wsUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Invalid endpoint URL");
+      return;
+    }
     store.setApiKey(apiKey);
     store.setActiveCollector(activeCollector);
     store.setActiveEnvironment(activeEnvironment);
