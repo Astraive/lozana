@@ -9,13 +9,16 @@ import {
 } from "recharts"
 import { cn } from "@/lib/cn"
 
-interface BarChartProps {
+export type BarRadius = [number, number, number, number]
+
+export interface BarChartProps {
   data: Record<string, unknown>[]
   xField: string
   yField: string
   height?: number
   color?: string
   className?: string
+  radius?: BarRadius
 }
 
 export function BarChart({
@@ -25,6 +28,7 @@ export function BarChart({
   height = 300,
   color = "var(--primary)",
   className,
+  radius = [3, 3, 0, 0],
 }: BarChartProps) {
   return (
     <div className={cn("w-full", className)}>
@@ -59,7 +63,7 @@ export function BarChart({
             itemStyle={{ color: "var(--muted-foreground)" }}
             cursor={{ fill: "var(--muted)", opacity: 0.15 }}
           />
-          <Bar dataKey={yField} fill={color} radius={[3, 3, 0, 0]} />
+          <Bar dataKey={yField} fill={color} radius={radius} />
         </RechartsBarChart>
       </ResponsiveContainer>
     </div>
