@@ -254,8 +254,10 @@ export function buildTraceTree(events: (LozaEvent | Record<string, unknown>)[]):
     }
   }
 
-  // With multiple independent roots, compute the critical path for each root tree
-  // rather than only the first one, so no root's spans are left unexamined.
+  // Every root span (and its subtree) must be considered. Computing the path
+  // from only the first root leaves all other roots and their descendants
+  // unmarked when a trace has multiple independent root trees. Walk the critical
+  // path for each root so no root's spans are left unexamined.
   for (const root of rootSpans) {
     findCriticalPath(root);
   }

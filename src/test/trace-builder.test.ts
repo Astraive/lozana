@@ -49,6 +49,57 @@ describe("Trace Tree Builder", () => {
     expect(tree.root_spans[0].is_critical_path).toBe(true);
   });
 
+  it("computes critical path from every root span when a trace has multiple roots", () => {
+    const events = [
+      {
+        trace_id: "tr_multi_root",
+        timestamp: "2026-01-01T00:00:00.000Z",
+        service: "svc-a",
+        event: "root.a",
+        span_id: "root-a",
+        duration_ms: 100,
+      },
+      {
+        trace_id: "tr_multi_root",
+        timestamp: "2026-01-01T00:00:00.010Z",
+        service: "svc-a",
+        event: "child.a",
+        span_id: "child-a",
+        parent_span_id: "root-a",
+        duration_ms: 50,
+      },
+      {
+        trace_id: "tr_multi_root",
+        timestamp: "2026-01-01T00:00:00.020Z",
+        service: "svc-b",
+        event: "root.b",
+        span_id: "root-b",
+        duration_ms: 80,
+      },
+      {
+        trace_id: "tr_multi_root",
+        timestamp: "2026-01-01T00:00:00.030Z",
+        service: "svc-b",
+        event: "child.b",
+        span_id: "child-b",
+        parent_span_id: "root-b",
+        duration_ms: 40,
+      },
+    ];
+
+    const tree = buildTraceTree(events);
+
+    // Two independent root trees: the fallback nesting must not have collapsed them.
+    expect(tree.root_spans.map((root) => root.span_id)).toEqual(["root-a", "root-b"]);
+
+    // Both roots and a descendant from each tree are on the critical path.
+    expect(tree.critical_path_ids).toContain("root-a");
+    expect(tree.critical_path_ids).toContain("child-a");
+    expect(tree.critical_path_ids).toContain("root-b");
+    expect(tree.critical_path_ids).toContain("child-b");
+    expect(tree.root_spans.every((root) => root.is_critical_path)).toBe(true);
+  });
+
   it("computes service summaries with distinct colors", () => {
     const tree = buildTraceTree(MOCK_WIDE_EVENTS);
 
