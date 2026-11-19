@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { LozaEvent } from "@/types/event";
+import { writeTextWithFeedback } from "@/lib/clipboard";
 
 interface EventDetailDrawerProps {
   event: LozaEvent | Record<string, unknown> | null;
@@ -50,10 +51,16 @@ export function EventDetailDrawer({
   const eventName = String(event.event || "");
 
   const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    toast.success("Copied to clipboard");
-    setTimeout(() => setCopiedKey(null), 1500);
+    writeTextWithFeedback(text, key, navigator.clipboard, {
+      onSuccess: (copiedItemKey) => {
+        setCopiedKey(copiedItemKey);
+        toast.success("Copied to clipboard");
+        setTimeout(() => setCopiedKey(null), 1500);
+      },
+      onError: () => {
+        toast.error("Failed to copy to clipboard");
+      },
+    });
   };
 
   const attrs = (event.attrs && typeof event.attrs === "object" ? event.attrs : {}) as Record<
