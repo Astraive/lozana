@@ -1,0 +1,35 @@
+# Version control and CI metadata — never part of the runtime image
+.git
+.gitignore
+.github
+
+# Secrets and local environment configuration
+.env*
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dependencies and build artifacts (installed/built inside the image)
+node_modules
+dist
+build
+out
+coverage
+*.tsbuildinfo
+
+# Local tooling / editor state
+.vscode
+.idea
+.loza
+*.local
+*.local.*
+
+# Documentation and reports are not needed at runtime
+docs
+*.md
+
+# Logs
+*.log
+npm-debug.log*

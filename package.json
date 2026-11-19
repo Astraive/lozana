@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "node scripts/eslint-ts6-loader.cjs src/",
-    "test": "vitest --run --passWithNoTests"
+    "test": "vitest --run"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
