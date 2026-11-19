@@ -43,6 +43,24 @@ export function resolveFeedbackVote(
 ): Record<string, FeedbackVote> {
   if (!submissionSucceeded) return prev;
   return { ...prev, [remediationId]: vote };
+/**
+ * Attempt a clipboard write and report whether it actually succeeded.
+ *
+ * `Clipboard.writeText` returns a promise that can reject (e.g. permission
+ * denied or a non-secure context), and `navigator.clipboard` itself may be
+ * unavailable. Both cases are captured here so callers never report success
+ * for a failed write and never leak an unhandled rejection.
+ */
+export async function copyTextToClipboard(
+  text: string,
+  writeText: (value: string) => Promise<void> = (value) => navigator.clipboard.writeText(value)
+): Promise<boolean> {
+  try {
+    await writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function IncidentWorkbench({
@@ -52,8 +70,12 @@ export function IncidentWorkbench({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<Record<string, FeedbackVote>>({});
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string, id: string) => {
+    const copied = await copyTextToClipboard(text);
+    if (!copied) {
+      toast.error("Failed to copy command to clipboard");
+      return;
+    }
     setCopiedId(id);
     toast.success("Command copied to clipboard");
     setTimeout(() => setCopiedId(null), 1500);
