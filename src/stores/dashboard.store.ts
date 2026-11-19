@@ -237,9 +237,11 @@ export const useDashboardStore = create<DashboardStoreState>()(
             result = result.replace(conditionWrapped, "1=1");
           }
 
-          // Replace $var and ${var}
-          result = result.replace(new RegExp(`\\$${escapedKey}\\b`, "g"), val);
-          result = result.replace(new RegExp(`\\$\\{${escapedKey}\\}`, "g"), val);
+          // Replace $var and ${var}. Use a replacer function so `$` sequences in
+          // the value (e.g. `$&`, `$'`, `` $` ``, `$1`, `$$`) are inserted literally
+          // instead of being interpreted as replacement patterns.
+          result = result.replace(new RegExp(`\\$${escapedKey}\\b`, "g"), () => val);
+          result = result.replace(new RegExp(`\\$\\{${escapedKey}\\}`, "g"), () => val);
         }
 
         return result;

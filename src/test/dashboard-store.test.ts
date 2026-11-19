@@ -70,4 +70,22 @@ describe("Dashboard store: interpolateQuery", () => {
       'from events | where level = "error" or 1=1'
     );
   });
+
+  it("inserts `$` sequences in variable values as literal text for $var", () => {
+    const tricky = "x$&y$'z$`w$1v$$u";
+    useDashboardStore.setState({ variableValues: { service: tricky } });
+
+    expect(interpolate('from events | where service = "$service"')).toBe(
+      'from events | where service = "' + tricky + '"'
+    );
+  });
+
+  it("inserts `$` sequences in variable values as literal text for ${var}", () => {
+    const tricky = "x$&y$'z$`w$1v$$u";
+    useDashboardStore.setState({ variableValues: { service: tricky } });
+
+    expect(interpolate('from events | where service = "${service}"')).toBe(
+      'from events | where service = "' + tricky + '"'
+    );
+  });
 });
