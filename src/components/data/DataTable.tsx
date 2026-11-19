@@ -41,13 +41,33 @@ export function DataTable<TData extends RowData>({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const table = useTable({
     features: dataTableFeatures,
+  const [requestedPageIndex, setRequestedPageIndex] = React.useState(0)
+
+  // `pageSize` is a prop, so derive it on every render instead of seeding
+  // `initialState` (which is only read when the table is first constructed).
+  const pageCount = Math.max(1, Math.ceil(data.length / pageSize))
+  const pageIndex = Math.min(requestedPageIndex, pageCount - 1)
+  const pagination = React.useMemo(
+    () => ({ pageIndex, pageSize }),
+    [pageIndex, pageSize]
+  )
+
+  const table = useLegacyTable({
     data,
     columns,
-    state: { sorting },
+    state: { sorting, pagination },
     onSortingChange: setSorting,
     initialState: {
       pagination: { pageIndex: 0, pageSize },
     },
+    onPaginationChange: (updater) => {
+      const next =
+        typeof updater === "function" ? updater(pagination) : updater
+      setRequestedPageIndex(next.pageIndex)
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   })
 
   return (
