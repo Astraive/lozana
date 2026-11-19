@@ -1,6 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/cn"
+import { chainEventHandlers, getArrowKeyIndex } from "@/lib/ui-utils"
 
 interface DropdownMenuContextValue {
   open: boolean
@@ -82,6 +83,11 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
           setOpen(!open)
           child.props.onClick?.(e)
         },
+        ref: mergedRef,
+        onClick: chainEventHandlers(
+          (children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>).props.onClick,
+          () => setOpen(!open)
+        ),
       }
       return React.cloneElement(child, childProps)
     }
@@ -94,6 +100,7 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
         aria-expanded={open}
         className={cn("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background", className)}
         onClick={composeTriggerClick(onClick, () => setOpen(!open))}
+        onClick={chainEventHandlers(onClick, () => setOpen(!open))}
         {...props}
       >
         {children}
@@ -149,13 +156,7 @@ function DropdownMenuContent({ className, align = "center", children, ...props }
         const items = Array.from(contentRef.current.querySelectorAll('[role="menuitem"]')) as HTMLElement[]
         if (items.length === 0) return
         const currentIndex = items.indexOf(document.activeElement as HTMLElement)
-        let nextIndex: number
-        if (e.key === "ArrowDown") {
-          nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0
-        } else {
-          nextIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1
-        }
-        items[nextIndex]?.focus()
+        items[getArrowKeyIndex(e.key, currentIndex, items.length)]?.focus()
       }
     }
     if (open) {
@@ -219,11 +220,13 @@ function DropdownMenuItem({ className, inset, children, onClick, onKeyDown, ...p
       }}
       onKeyDown={(e) => {
         onKeyDown?.(e)
+      onClick={chainEventHandlers(onClick, () => setOpen(false))}
+      onKeyDown={chainEventHandlers(onKeyDown, (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
           setOpen(false)
         }
-      }}
+      })}
       {...props}
     >
       {children}

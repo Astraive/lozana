@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Clock, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/cn"
+import { getArrowKeyIndex } from "@/lib/ui-utils"
 
 const TIME_RANGES = [
   { label: "Last 5m", value: "5m" },
@@ -20,7 +21,9 @@ interface TimeRangePickerProps {
 
 export function TimeRangePicker({ value, onChange, className }: TimeRangePickerProps) {
   const [open, setOpen] = React.useState(false)
+  const [activeIndex, setActiveIndex] = React.useState(-1)
   const ref = React.useRef<HTMLDivElement>(null)
+  const listboxId = React.useId()
 
   React.useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -42,34 +45,75 @@ export function TimeRangePicker({ value, onChange, className }: TimeRangePickerP
   const selectedLabel =
     TIME_RANGES.find((r) => r.value === value)?.label ?? value
 
+  const select = (rangeValue: string) => {
+    onChange(rangeValue)
+    setOpen(false)
+    setActiveIndex(-1)
+  }
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault()
+      if (!open) {
+        const selectedIndex = TIME_RANGES.findIndex((r) => r.value === value)
+        setActiveIndex(
+          e.key === "ArrowDown"
+            ? Math.max(selectedIndex, 0)
+            : selectedIndex >= 0
+            ? selectedIndex
+            : TIME_RANGES.length - 1
+        )
+        setOpen(true)
+      } else {
+        setActiveIndex((index) => getArrowKeyIndex(e.key, index, TIME_RANGES.length))
+      }
+    } else if ((e.key === "Enter" || e.key === " ") && open && activeIndex >= 0) {
+      e.preventDefault()
+      select(TIME_RANGES[activeIndex].value)
+    }
+  }
+
   return (
     <div ref={ref} className={cn("relative inline-block", className)}>
       <button
         type="button"
+        role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={listboxId}
+        aria-activedescendant={
+          open && activeIndex >= 0
+            ? `${listboxId}-option-${TIME_RANGES[activeIndex].value}`
+            : undefined
+        }
         className="inline-flex items-center gap-2 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-all duration-200 font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (!open) {
+            const selectedIndex = TIME_RANGES.findIndex((r) => r.value === value)
+            setActiveIndex(selectedIndex)
+          }
+          setOpen(!open)
+        }}
+        onKeyDown={handleTriggerKeyDown}
       >
         <Clock className="h-3.5 w-3.5" />
         {selectedLabel}
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
       </button>
       {open && (
-        <div role="listbox" className="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md shadow-primary/5 animate-in fade-in-0 zoom-in-95">
-          {TIME_RANGES.map((range) => (
+        <div id={listboxId} role="listbox" aria-label="Time range" className="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md shadow-primary/5 animate-in fade-in-0 zoom-in-95">
+          {TIME_RANGES.map((range, index) => (
             <button
               key={range.value}
+              id={`${listboxId}-option-${range.value}`}
               role="option"
               aria-selected={value === range.value}
               className={cn(
                 "flex w-full items-center rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-primary/10 hover:text-primary focus-visible:bg-primary/10 focus-visible:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset font-mono",
-                value === range.value && "bg-primary/10 text-primary font-medium"
+                (value === range.value || index === activeIndex) && "bg-primary/10 text-primary font-medium"
               )}
-              onClick={() => {
-                onChange(range.value)
-                setOpen(false)
-              }}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => select(range.value)}
             >
               {range.label}
             </button>
