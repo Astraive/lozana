@@ -20,6 +20,7 @@ export function useQueryEvents(
   limit = 1000,
   enabled = true,
   connection?: string,
+  refetchInterval: number | false = false,
 ) {
   const queryKey = useScopedQueryKey("events", "lql", query, parameters, limit, connection);
   return useQuery<QueryResult>({
@@ -27,6 +28,7 @@ export function useQueryEvents(
     queryFn: () => queryLqlEvents(query, parameters, limit, connection),
     enabled: enabled && query.trim().length > 0,
     staleTime: 30_000,
+    refetchInterval,
   });
 }
 

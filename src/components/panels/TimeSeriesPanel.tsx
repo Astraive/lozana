@@ -1,6 +1,7 @@
 import { PanelWrapper } from "./PanelWrapper";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
 import { buildTimeSeriesData } from "@/lib/timeseries-data";
+import { finiteOr, firstFiniteValue } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
 
 interface TimeSeriesPanelProps {
@@ -32,6 +33,20 @@ export function TimeSeriesPanel({ panel, onEdit, onDelete, onDuplicate }: TimeSe
         }
 
         const chartData = buildTimeSeriesData(rows, panel.visualization?.yField);
+        const chartData = rows.map((r) => {
+          const timestamp = String(r.bin ?? r.bin_timestamp ?? r.timestamp ?? "");
+          const value =
+            firstFiniteValue(r, [
+              "event_count",
+              "count_",
+              "count",
+              "p95_duration_ms",
+              "p99_duration_ms",
+              "duration_ms",
+            ]) ?? finiteOr(Object.values(r)[1], 0);
+          const service = String(r.service ?? r.status_code ?? "series");
+          return { timestamp, value, service };
+        });
 
         return (
           <div className="flex-1 min-h-[160px] w-full">

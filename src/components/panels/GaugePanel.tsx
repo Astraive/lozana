@@ -1,5 +1,6 @@
 import { PanelWrapper } from "./PanelWrapper";
 import { computeGaugeAngle, computeGaugePercentage } from "@/lib/gauge";
+import { computeGaugePercentage, finiteOr } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
 
 interface GaugePanelProps {
@@ -26,7 +27,7 @@ export function GaugePanel({ panel, onEdit, onDelete, onDuplicate }: GaugePanelP
         if (rows.length > 0) {
           const first = rows[0];
           const k = Object.keys(first)[0];
-          val = Number(first[k]) || 0;
+          val = finiteOr(k === undefined ? undefined : first[k], 0);
         }
 
         const min = panel.visualization?.gaugeMin ?? 0;

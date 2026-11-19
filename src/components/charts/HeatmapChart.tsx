@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/cn"
+import { getHeatmapValueRange, isFiniteHeatmapPoint } from "@/lib/panel-math"
 
 // A delimiter-free, unambiguous key for an (x, y) cell. Using a plain
 // `${x}:${y}` concatenation collides whenever a label contains the delimiter
@@ -63,16 +64,23 @@ export function HeatmapChart({
   className,
   cellSize = 16,
 }: HeatmapChartProps) {
-  const xLabels = React.useMemo(() => [...new Set(data.map((d) => d.x))], [data])
-  const yLabels = React.useMemo(() => [...new Set(data.map((d) => d.y))], [data])
+  // Drop malformed points so one bad row cannot blank the chart or produce NaN colors.
+  const validData = React.useMemo(() => data.filter(isFiniteHeatmapPoint), [data])
+  const xLabels = React.useMemo(() => [...new Set(validData.map((d) => d.x))], [validData])
+  const yLabels = React.useMemo(() => [...new Set(validData.map((d) => d.y))], [validData])
 
   const valueRange = React.useMemo(() => computeValueRange(data), [data])
 
   const dataMap = React.useMemo(() => {
     const map = new Map<string, number>()
     data.forEach((d) => map.set(cellKey(d.x, d.y), d.value))
+  const valueRange = React.useMemo(() => getHeatmapValueRange(validData), [validData])
+
+  const dataMap = React.useMemo(() => {
+    const map = new Map<string, number>()
+    validData.forEach((d) => map.set(`${d.x}:${d.y}`, d.value))
     return map
-  }, [data])
+  }, [validData])
 
   const getColor = (value: number) => {
     if (valueRange.max === valueRange.min) return colorScale[0]

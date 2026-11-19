@@ -3,6 +3,8 @@ import { useDashboardStore } from "@/stores/dashboard.store";
 import { queryLqlEvents } from "@/lib/api/events";
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, Filter } from "lucide-react";
+import { Filter } from "lucide-react";
+import { toVariableOption } from "@/lib/panel-math";
 import type { DashboardVariable } from "@/types/dashboard";
 import { resolveVariableValue } from "@/lib/dashboard/variable-value";
 import {
@@ -34,6 +36,23 @@ export function VariableBar({ variables }: VariableBarProps) {
               return next;
             }
             return { ...prev, [name]: error };
+  useEffect(() => {
+    // Load options for query-based variables
+    for (const v of variables) {
+      if (v.type === "query" && v.query) {
+        queryLqlEvents(v.query, {}, 50)
+          .then((res) => {
+            const opts = res.rows
+              .map((r) => toVariableOption(Object.values(r)[0]))
+              .filter(Boolean);
+            setDynamicOptions((prev) => ({ ...prev, [v.name]: opts }));
+          })
+          .catch(() => {
+            // Fallback options
+            setDynamicOptions((prev) => ({
+              ...prev,
+              [v.name]: ["auth-service", "payment-api", "frontend", "checkout-worker"],
+            }));
           });
         }
       ),
@@ -51,6 +70,7 @@ export function VariableBar({ variables }: VariableBarProps) {
 
       {variables.map((v) => {
         const currentValue = resolveVariableValue(v, variableValues);
+        const currentValue = variableValues[v.name] ?? v.defaultValue ?? (v.includeAll ? "all" : "");
         const options =
           v.type === "query"
             ? dynamicOptions[v.name] || getVariableFallbackOptions(v)

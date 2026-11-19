@@ -32,6 +32,7 @@ interface PanelWrapperProps {
   onDuplicate?: (panelId: string) => void;
   /** Set to false to stop the panel's event query (e.g. while a log stream is paused). */
   enabled?: boolean;
+  refetchInterval?: number | false;
   children: (data: QueryResult | undefined, isLoading: boolean, error: Error | null) => React.ReactNode;
 }
 
@@ -41,6 +42,7 @@ export function PanelWrapper({
   onDelete,
   onDuplicate,
   enabled = true,
+  refetchInterval,
   children,
 }: PanelWrapperProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -49,6 +51,14 @@ export function PanelWrapper({
 
   const finalQuery = interpolateQuery(panel.query);
   const queryResult = useQueryEvents(finalQuery, {}, 500, isPanelQueryEnabled(panel, enabled));
+  const queryResult = useQueryEvents(
+    finalQuery,
+    {},
+    500,
+    Boolean(panel.query && panel.type !== "markdown"),
+    undefined,
+    refetchInterval,
+  );
 
   const toggleFullscreen = () => {
     setIsFullscreen((prev) => !prev);

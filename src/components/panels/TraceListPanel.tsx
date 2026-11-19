@@ -2,6 +2,7 @@ import { PanelWrapper } from "./PanelWrapper";
 import { Badge } from "@/components/ui/badge";
 import { GitBranch, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { firstFiniteValue } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
 
 interface TraceListPanelProps {
@@ -37,10 +38,10 @@ export function TraceListPanel({ panel, onEdit, onDelete, onDuplicate }: TraceLi
         return (
           <div className="flex-1 overflow-y-auto space-y-1.5 p-1">
             {rows.slice(0, 20).map((r, i) => {
-              const traceId = String(r.trace_id || `trace-${i}`);
-              const service = String(r.service || "service");
-              const duration = Number(r.duration_ms || r.max_duration_ms || 0);
-              const count = Number(r.event_count || r.count_ || r.count || 1);
+              const traceId = String(r.trace_id ?? `trace-${i}`);
+              const service = String(r.service ?? "service");
+              const duration = firstFiniteValue(r, ["duration_ms", "max_duration_ms"]) ?? 0;
+              const count = firstFiniteValue(r, ["event_count", "count_", "count"]) ?? 1;
 
               return (
                 <div

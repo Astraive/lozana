@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHeatmapData } from "@/components/panels/HeatmapPanel";
+import { buildHeatmapData } from "@/lib/panel-math";
 
 describe("heatmap data contract", () => {
   it("uses only backend-provided axes and values", () => {
@@ -22,5 +22,26 @@ describe("heatmap data contract", () => {
       { x: "10:00", y: "slow", value: 1 },
       { x: "10:00", y: "slow", value: 2 },
     ])).toBeNull();
+  });
+
+  it("skips malformed rows instead of blanking the whole chart", () => {
+    const heatmap = buildHeatmapData([
+      { x: "10:00", y: "fast", value: 4 },
+      { x: "10:05" },
+      { x: "10:05", y: "fast", value: "nope" },
+      { x: "10:05", y: "fast", value: 6 },
+    ]);
+
+    expect(heatmap?.xLabels).toEqual(["10:00", "10:05"]);
+    expect(heatmap?.yLabels).toEqual(["fast"]);
+    expect(heatmap?.values.get("fast\u000010:00")).toBe(4);
+    expect(heatmap?.values.get("fast\u000010:05")).toBe(6);
+    expect(heatmap?.maxValue).toBe(6);
+  });
+
+  it("keeps legitimate zero-valued cells", () => {
+    const heatmap = buildHeatmapData([{ x: "10:00", y: "fast", value: 0 }]);
+    expect(heatmap?.values.get("fast\u000010:00")).toBe(0);
+    expect(heatmap?.maxValue).toBe(0);
   });
 });
