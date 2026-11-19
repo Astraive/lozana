@@ -35,6 +35,13 @@ interface DashboardStoreState {
   interpolateQuery: (query: string) => string;
 }
 
+// Escape regex metacharacters so a variable name (which may come from an
+// imported dashboard) is always matched literally and can never introduce a
+// catastrophic-backtracking pattern into the generated RegExp.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export const useDashboardStore = create<DashboardStoreState>()(
   persist(
     (set, get) => ({
@@ -240,6 +247,17 @@ export const useDashboardStore = create<DashboardStoreState>()(
           // Replace $var and ${var}. Use a replacer function so `$` sequences in
           // the value (e.g. `$&`, `$'`, `` $` ``, `$1`, `$$`) are inserted literally
           // instead of being interpreted as replacement patterns.
+
+          if (!val || val === "all") {
+            // Remove where filters for "all" if appropriate or replace with true condition
+            const regexSimple = new RegExp(`where\\s+${escapedKey}\\s*=\\s*"\\$${escapedKey}"`, "gi");
+            result = result.replace(regexSimple, "where 1=1");
+            const regexWrapped = new RegExp(`where\\s+${escapedKey}\\s*=\\s*"\\$\\{${escapedKey}\\}"`, "gi");
+            result = result.replace(regexWrapped, "where 1=1");
+          }
+
+          // Replace $var and ${var}. Function replacements keep `$` sequences
+          // in values (e.g. `$&`, `$'`, `$1`, `$$`) strictly literal.
           result = result.replace(new RegExp(`\\$${escapedKey}\\b`, "g"), () => val);
           result = result.replace(new RegExp(`\\$\\{${escapedKey}\\}`, "g"), () => val);
         }
