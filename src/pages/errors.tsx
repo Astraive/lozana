@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useErrorEvents } from "@/lib/hooks";
 import { errorMessage } from "@/lib/page-logic";
+import { buildLqlServiceFilter } from "@/lib/lql/query-contract";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -299,6 +300,7 @@ export default function ErrorsPage() {
                           onClick={() =>
                             navigate(
                               `/explore?q=${encodeURIComponent(buildErrorExploreQuery(group.service))}`
+                              `/explore?q=${encodeURIComponent(`from events | ${buildLqlServiceFilter(group.service)} and (level = "error" or level = "fatal") | sort timestamp desc | limit 50`)}`
                             )
                           }
                           className="h-7 text-xs gap-1.5"
