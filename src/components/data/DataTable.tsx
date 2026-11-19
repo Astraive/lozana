@@ -1,13 +1,12 @@
 import * as React from "react"
-import { flexRender } from "@tanstack/react-table"
 import {
-  useLegacyTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getPaginationRowModel,
-  type LegacyColumnDef as ColumnDef,
-} from "@tanstack/react-table/legacy"
-import type { RowData, SortingState } from "@tanstack/table-core"
+  flexRender,
+  useTable,
+  type ColumnDef,
+  type RowData,
+  type SortingState,
+} from "@tanstack/react-table"
+import { dataTableFeatures } from "@/components/data/data-table-features"
 import { cn } from "@/lib/cn"
 import {
   Table,
@@ -19,9 +18,16 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 
+/** Column definition type bound to the features `DataTable` registers. */
+export type DataTableColumnDef<TData extends RowData> = ColumnDef<
+  typeof dataTableFeatures,
+  TData,
+  unknown
+>
+
 interface DataTableProps<TData extends RowData> {
   data: TData[]
-  columns: ColumnDef<TData, unknown>[]
+  columns: DataTableColumnDef<TData>[]
   className?: string
   pageSize?: number
 }
@@ -33,14 +39,12 @@ export function DataTable<TData extends RowData>({
   pageSize = 20,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const table = useLegacyTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: { pageIndex: 0, pageSize },
     },
@@ -119,7 +123,7 @@ export function DataTable<TData extends RowData>({
             Previous
           </Button>
           <span className="text-sm text-muted-foreground font-mono">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
+            Page {table.state.pagination.pageIndex + 1} of{" "}
             {table.getPageCount()}
           </span>
           <Button
