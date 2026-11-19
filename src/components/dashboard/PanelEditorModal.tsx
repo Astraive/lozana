@@ -48,7 +48,7 @@ function PanelEditorForm({ panel, open, onOpenChange, onSave }: PanelEditorModal
   const [description, setDescription] = useState(panel?.description || "");
   const [type, setType] = useState<PanelType>(panel?.type || "timeseries");
   const [query, setQuery] = useState(panel?.query || "from events | limit 100");
-  const content = panel?.content || "";
+  const [content, setContent] = useState(panel?.content || "");
   const [unit, setUnit] = useState<string>(panel?.visualization?.unit || "none");
   const [color, setColor] = useState<string>(panel?.visualization?.color || "#3b82f6");
   const [chartType, setChartType] = useState<"line" | "area">(
@@ -241,30 +241,45 @@ function PanelEditorForm({ panel, open, onOpenChange, onSave }: PanelEditorModal
             </div>
           </div>
 
-          {/* Right Column: Query Editor & Live Preview */}
+          {/* Right Column: Query Editor / Markdown Body & Live Preview */}
           <div className="md:col-span-7 space-y-3 flex flex-col">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                LQL Query
-              </label>
-              <div className="h-32 rounded border border-border/80 overflow-hidden">
-                <Editor
-                  height="100%"
-                  language={LQL_LANGUAGE_ID}
-                  theme={theme === "light" ? "lozana-light" : "lozana-dark"}
-                  value={query}
-                  onChange={(val) => setQuery(val || "")}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 12,
-                    lineNumbers: "on",
-                    scrollBeyondLastLine: false,
-                    wordWrap: "on",
-                    padding: { top: 4, bottom: 4 },
-                  }}
+            {type === "markdown" ? (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Markdown Content
+                </label>
+                <textarea
+                  data-testid="markdown-content-editor"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Write markdown to document this dashboard..."
+                  className="h-64 w-full resize-y rounded border border-border/80 bg-background p-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-            </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  LQL Query
+                </label>
+                <div className="h-32 rounded border border-border/80 overflow-hidden">
+                  <Editor
+                    height="100%"
+                    language={LQL_LANGUAGE_ID}
+                    theme={theme === "light" ? "lozana-light" : "lozana-dark"}
+                    value={query}
+                    onChange={(val) => setQuery(val || "")}
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 12,
+                      lineNumbers: "on",
+                      scrollBeyondLastLine: false,
+                      wordWrap: "on",
+                      padding: { top: 4, bottom: 4 },
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Live Panel Preview Box */}
             <div className="flex-1 flex flex-col space-y-1">
