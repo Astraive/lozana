@@ -7,6 +7,7 @@ import {
 } from "./client";
 import { validateEndpointUrl } from "./endpoint-policy";
 import type { LozaEvent } from "@/types/event";
+import { compileSafeRegex, testRegexSafely } from "./safe-regex";
 
 export type StreamConnectionStatus =
   | "connecting"
@@ -23,6 +24,20 @@ export interface StreamFilterOptions {
   trace_id?: string;
   incident_id?: string;
   searchRegex?: string;
+}
+
+/**
+ * Server-side filters (service/level) are baked into the stream URL, so only
+ * changes to those require reopening the connection. `searchRegex` is applied
+ * client-side and never sent to the server. `null` means the initial mount,
+ * where the lifecycle effect has already opened the stream.
+ */
+export function shouldReconnectForFilters(
+  previous: StreamFilterOptions | null,
+  next: StreamFilterOptions
+): boolean {
+  if (previous === null) return false;
+  return previous.service !== next.service || previous.level !== next.level;
 }
 
 export interface StreamStats {
@@ -215,15 +230,9 @@ export class LiveStreamClient {
 
   public setFilters(filters: StreamFilterOptions): string | null {
     this.filters = { ...filters };
-    this.searchRegex = null;
-    if (!filters.searchRegex) return null;
-    try {
-      this.searchRegex = new RegExp(filters.searchRegex, "i");
-      return null;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Invalid regular expression";
-      return message;
-    }
+    const { regex, error } = compileSafeRegex(filters.searchRegex ?? "");
+    this.searchRegex = regex;
+    return error;
   }
 
   public onEvent(cb: StreamEventCallback): () => void {
@@ -287,6 +296,18 @@ export class LiveStreamClient {
   }
 
   public connect(useWebSocket = false): void {
+    // An explicit (re)connect is a fresh start: clear any exhausted backoff so
+    // manual retry and filter changes work again after repeated failures.
+    this.reconnectAttempts = 0;
+    this.establishConnection(useWebSocket);
+  }
+
+  /** Re-establish the stream using the currently selected transport. */
+  public reconnect(): void {
+    this.connect(this.useWebSocket);
+  }
+
+  private establishConnection(useWebSocket: boolean): void {
     this.disconnect();
     this.useWebSocket = useWebSocket;
     this.paused = false;
@@ -466,7 +487,7 @@ export class LiveStreamClient {
       if (this.filters.level && event.level !== this.filters.level) return;
       if (this.filters.trace_id && event.trace_id !== this.filters.trace_id) return;
       if (this.filters.incident_id && event.incident_id !== this.filters.incident_id) return;
-      if (this.searchRegex && !this.searchRegex.test(JSON.stringify(event))) return;
+      if (this.searchRegex && !testRegexSafely(this.searchRegex, JSON.stringify(event))) return;
 
       this.stats.eventsReceived++;
       this.secondWindowEvents++;
@@ -496,7 +517,9 @@ export class LiveStreamClient {
     const backoffMs = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 15000);
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
-      this.connect(this.useWebSocket);
+      // Automatic retries must keep the backoff counter; only an explicit
+      // connect()/reconnect() resets it.
+      this.establishConnection(this.useWebSocket);
     }, backoffMs);
   }
 

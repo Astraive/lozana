@@ -5,7 +5,13 @@ import {
   buildTailWebSocketUrl,
   buildWebSocketProtocols,
   type StreamStats,
+  shouldReconnectForFilters,
 } from "@/lib/api/streaming";
+import {
+  compileSafeRegex,
+  isPotentiallyUnsafeRegex,
+  MAX_REGEX_PATTERN_LENGTH,
+} from "@/lib/api/safe-regex";
 import { useAppStore } from "@/stores/app.store";
 
 describe("Streaming RingBuffer", () => {
@@ -356,6 +362,124 @@ describe("WebSocket tail contract", () => {
     expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-valid"]);
     client.disconnect();
   });
+
+  it("manual reconnect works after exhausting automatic retries", () => {
+    const pending: Array<() => void> = [];
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn((fn: () => void) => {
+        pending.push(fn);
+        return pending.length;
+      }),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+
+    // Drop the connection and run each scheduled retry until the backoff limit
+    // is exhausted.
+    for (let i = 0; i < 20 && client.getStatus() !== "disconnected"; i++) {
+      const sockets = FakeWebSocket.instances;
+      sockets[sockets.length - 1].closeFromServer();
+      pending.pop()?.();
+    }
+
+    expect(client.getStatus()).toBe("disconnected");
+    const socketsBefore = FakeWebSocket.instances.length;
+
+    // An explicit reconnect clears the exhausted counter and opens a socket.
+    client.reconnect();
+    expect(client.getStatus()).toBe("connecting");
+    expect(FakeWebSocket.instances.length).toBe(socketsBefore + 1);
+
+    // A subsequent failure must schedule another retry, not stay dead.
+    const socketsAfter = FakeWebSocket.instances;
+    socketsAfter[socketsAfter.length - 1].closeFromServer();
+    expect(client.getStatus()).toBe("reconnecting");
+    expect(pending.length).toBe(1);
+
+    client.disconnect();
+  });
+});
+
+describe("Safe regex filters", () => {
+  it("accepts ordinary patterns and reports invalid ones", () => {
+    const { regex, error } = compileSafeRegex("error|warn");
+    expect(error).toBeNull();
+    expect(regex?.test("WARN")).toBe(true);
+    expect(compileSafeRegex("[").error).toMatch(/regular expression/i);
+  });
+
+  it("rejects catastrophic-backtracking and oversized patterns", () => {
+    for (const pattern of [
+      "(a+)+$",
+      "(a|aa)+$",
+      "([a-zA-Z]+)*$",
+      // Regression cases from review: bounded quantifier nested in a
+      // quantified group, and longer overlapping alternations.
+      "(a{1,3})+$",
+      "(a|aaa)+$",
+      "(ab|abcd)+$",
+      // Semantic overlaps: classes/shorthands overlap literals, and case
+      // folding under the `i` flag makes a and A equivalent.
+      "([ab]|a)+$",
+      "(a|[ab])+$",
+      "(\\w|a)+$",
+      "(a|\\w)+$",
+      "(a|[a-c])+$",
+      "(a|A)+$",
+    ]) {
+      expect(isPotentiallyUnsafeRegex(pattern)).toBe(true);
+      expect(compileSafeRegex(pattern).error).toMatch(/complex/i);
+    }
+    expect(compileSafeRegex("a".repeat(MAX_REGEX_PATTERN_LENGTH + 1)).error).toMatch(/too long/i);
+  });
+
+  it("does not flag common benign patterns as unsafe", () => {
+    expect(isPotentiallyUnsafeRegex("(?:error|warn)+")).toBe(false);
+    expect(isPotentiallyUnsafeRegex(".*timeout.*")).toBe(false);
+    expect(isPotentiallyUnsafeRegex("^\\d{2,4}$")).toBe(false);
+  });
+
+  it("rejects an unsafe regex via setFilters without dropping events", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+    const client = new LiveStreamClient();
+    client.connect(true);
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+
+    expect(client.setFilters({ searchRegex: "(a+)+$" })).toMatch(/complex/i);
+    socket.message(
+      JSON.stringify({
+        event_id: "evt-ok",
+        timestamp: "2026-08-24T04:12:00Z",
+        message: "aaaaaaaaaaaaaaaaaaaa",
+      })
+    );
+
+    expect(client.getEvents().map((event) => event.event_id)).toEqual(["evt-ok"]);
+    client.disconnect();
+  });
 });
 
 function ndjsonResponse(chunks: string[]): Response {
@@ -447,6 +571,30 @@ describe("NDJSON tail contract", () => {
 
 describe("Live stream buffer capacity stats", () => {
   it("exposes configured capacity separately from the live buffer size and updates it reactively", () => {
+describe("Filter-change reconnect", () => {
+  it("reconnects only when server-side filters change", () => {
+    const initial = { service: undefined, level: undefined };
+    expect(shouldReconnectForFilters(null, initial)).toBe(false); // initial mount
+    expect(shouldReconnectForFilters(initial, { service: "checkout" })).toBe(true);
+    expect(
+      shouldReconnectForFilters(
+        { service: "checkout", level: undefined },
+        { service: "checkout", level: "error" }
+      )
+    ).toBe(true);
+    expect(
+      shouldReconnectForFilters({ service: "checkout", level: "error" }, { service: "checkout", level: "error" })
+    ).toBe(false);
+    // searchRegex is client-only, so changing it must not reconnect.
+    expect(
+      shouldReconnectForFilters(
+        { service: "checkout", level: "error", searchRegex: "err" },
+        { service: "checkout", level: "error", searchRegex: "warn" }
+      )
+    ).toBe(false);
+  });
+
+  it("applies changed server filters to a freshly opened stream", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
       clearInterval: vi.fn(),
@@ -491,6 +639,24 @@ describe("Live stream buffer capacity stats", () => {
     // setCapacity emits stats, so a bound React component re-renders with the new value.
     expect(emitted[emitted.length - 1]?.bufferCapacity).toBe(5000);
 
+    const client = new LiveStreamClient();
+    let applied: Parameters<typeof shouldReconnectForFilters>[0] = null;
+    client.connect(true);
+
+    // Mirror LiveTailView's filter effect: the first application records the
+    // baseline without reconnecting; a later change reopens the stream.
+    const initial = { service: "checkout" };
+    client.setFilters(initial);
+    applied = initial;
+
+    const next = { service: "billing", level: "error" };
+    client.setFilters(next);
+    if (shouldReconnectForFilters(applied, next)) client.reconnect();
+    applied = next;
+
+    expect(FakeWebSocket.instances.length).toBe(2);
+    expect(FakeWebSocket.instances[1].url).toContain("service=billing");
+    expect(FakeWebSocket.instances[1].url).toContain("level=error");
     client.disconnect();
   });
 });
