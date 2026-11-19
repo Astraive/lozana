@@ -6,9 +6,8 @@ import { AlertTriangle, Filter } from "lucide-react";
 import type { DashboardVariable } from "@/types/dashboard";
 import { resolveVariableValue } from "@/lib/dashboard/variable-value";
 import {
-  describeQueryError,
-  extractQueryOptions,
   getVariableFallbackOptions,
+  loadVariableOptions,
 } from "@/lib/dashboard-variable-options";
 
 interface VariableBarProps {
@@ -20,32 +19,26 @@ export function VariableBar({ variables }: VariableBarProps) {
   const [dynamicOptions, setDynamicOptions] = useState<Record<string, string[]>>({});
   const [queryErrors, setQueryErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    // Load options for query-based variables
-    for (const v of variables) {
-      if (v.type === "query" && v.query) {
-        queryLqlEvents(v.query, {}, 50)
-          .then((res) => {
-            setDynamicOptions((prev) => ({ ...prev, [v.name]: extractQueryOptions(res.rows) }));
-            setQueryErrors((prev) => {
-              if (!(v.name in prev)) return prev;
+  useEffect(
+    () =>
+      loadVariableOptions(
+        variables,
+        (query) => queryLqlEvents(query, {}, 50),
+        (name, options, error) => {
+          setDynamicOptions((prev) => ({ ...prev, [name]: options }));
+          setQueryErrors((prev) => {
+            if (error === undefined) {
+              if (!(name in prev)) return prev;
               const next = { ...prev };
-              delete next[v.name];
+              delete next[name];
               return next;
-            });
-          })
-          .catch((error: unknown) => {
-            // Surface the failure and fall back only to this variable's own
-            // configured options (or nothing) - never to unrelated fixed values.
-            setDynamicOptions((prev) => ({
-              ...prev,
-              [v.name]: getVariableFallbackOptions(v),
-            }));
-            setQueryErrors((prev) => ({ ...prev, [v.name]: describeQueryError(error) }));
+            }
+            return { ...prev, [name]: error };
           });
-      }
-    }
-  }, [variables]);
+        }
+      ),
+    [variables]
+  );
 
   if (!variables || variables.length === 0) return null;
 
