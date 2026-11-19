@@ -9,12 +9,30 @@ interface CopyButtonProps extends Omit<ButtonProps, "onClick"> {
 
 export function CopyButton({ text, className, variant = "ghost", size = "icon", ...props }: CopyButtonProps) {
   const [copied, setCopied] = React.useState(false)
+  const resetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showCopied = React.useCallback(() => {
+    if (resetTimer.current !== null) {
+      clearTimeout(resetTimer.current)
+    }
+    setCopied(true)
+    resetTimer.current = setTimeout(() => {
+      setCopied(false)
+      resetTimer.current = null
+    }, 2000)
+  }, [])
+
+  React.useEffect(() => {
+    return () => {
+      if (resetTimer.current !== null) {
+        clearTimeout(resetTimer.current)
+      }
+    }
+  }, [])
 
   const handleCopy = React.useCallback(async () => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     } catch {
       const textarea = document.createElement("textarea")
       textarea.value = text
@@ -22,10 +40,9 @@ export function CopyButton({ text, className, variant = "ghost", size = "icon", 
       textarea.select()
       document.execCommand("copy")
       document.body.removeChild(textarea)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     }
-  }, [text])
+    showCopied()
+  }, [text, showCopied])
 
   return (
     <Button
