@@ -1,4 +1,5 @@
 import { useCollectorHealth, useTopServices, useTopErrors, useEventsOverTime } from "@/lib/hooks";
+import { errorMessage, isSinkHealthy } from "@/lib/page-logic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -244,7 +245,17 @@ export default function OverviewPage() {
       )}
 
       {/* -- Event Timeline ------------------------------------------------ */}
-      {eventsOverTime.isLoading ? (
+      {eventsOverTime.isError ? (
+        <Card className="border-destructive/30 bg-destructive/[0.05]">
+          <CardContent className="p-4 flex items-center gap-3" role="alert">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-destructive">Failed to load event volume</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{errorMessage(eventsOverTime.error)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : eventsOverTime.isLoading ? (
         <ChartSkeleton />
       ) : timelineData.length > 0 ? (
         <Card className="bg-card border-border">
@@ -313,7 +324,13 @@ export default function OverviewPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {errorChartData.length > 0 ? (
+              {errors.isError ? (
+                <div role="alert" className="flex flex-col items-center justify-center h-[220px] gap-2 text-center">
+                  <AlertTriangle className="h-8 w-8 text-destructive opacity-60" />
+                  <p className="text-sm font-medium text-destructive">Failed to load error events</p>
+                  <p className="text-xs text-muted-foreground">{errorMessage(errors.error)}</p>
+                </div>
+              ) : errorChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={errorChartData} barSize={24}>
                     <CartesianGrid
@@ -363,7 +380,13 @@ export default function OverviewPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {serviceChartData.length > 0 ? (
+              {services.isError ? (
+                <div role="alert" className="flex flex-col items-center justify-center h-[220px] gap-2 text-center">
+                  <AlertTriangle className="h-8 w-8 text-destructive opacity-60" />
+                  <p className="text-sm font-medium text-destructive">Failed to load services</p>
+                  <p className="text-xs text-muted-foreground">{errorMessage(services.error)}</p>
+                </div>
+              ) : serviceChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={serviceChartData} barSize={24}>
                     <CartesianGrid
@@ -415,7 +438,7 @@ export default function OverviewPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {health.data.sinks.map((sink) => {
-                const isHealthy = sink.status === "ok" && sink.errors === 0;
+                const isHealthy = isSinkHealthy(sink);
                 return (
                   <div
                     key={sink.name}

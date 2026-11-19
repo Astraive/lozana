@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type * as MonacoType from "monaco-editor";
-import { LqlQueryError, listDatabaseConnections } from "@/lib/api/events";
+import { listDatabaseConnections } from "@/lib/api/events";
+import { shouldSyncUrlQuery, resolveQueryError } from "@/lib/page-logic";
 import { useQueryEvents } from "@/lib/hooks";
 import { useQueryStore } from "@/stores/query.store";
 import { useAppStore } from "@/stores/app.store";
@@ -49,7 +50,9 @@ export default function ExplorePage() {
   const [searchParams] = useSearchParams();
   const urlQuery = searchParams.get("q") ?? "";
 
-  return <ExploreWorkspace key={urlQuery} urlQuery={urlQuery} />;
+  // Do not key the workspace on urlQuery: executing a query rewrites the URL,
+  // which would remount the workspace and reset view state and Monaco on every run.
+  return <ExploreWorkspace urlQuery={urlQuery} />;
 }
 
 function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
@@ -112,6 +115,17 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
       updateActiveTabQuery(queryToApply);
     }
   }, [urlQuery, getActiveQuery, updateActiveTabQuery]);
+  // Keep the active tab aligned with a query supplied by navigation, but only
+  // when the URL actually changes. Reacting to activeQuery here clobbers a
+  // newly switched/created tab with the stale URL value.
+  const lastSyncedUrlQueryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!shouldSyncUrlQuery(urlQuery, lastSyncedUrlQueryRef.current)) return;
+    lastSyncedUrlQueryRef.current = urlQuery;
+    updateActiveTabQuery(urlQuery);
+    setSubmittedQuery(urlQuery);
+    setQueryEnabled(true);
+  }, [urlQuery, updateActiveTabQuery]);
 
   // Execute query handler
   const handleExecute = useCallback(() => {
@@ -244,8 +258,7 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
     value: Number(r.event_count || r.count_ || r.count || 1),
   }));
 
-  const diagnostics =
-    queryResult.error instanceof LqlQueryError ? queryResult.error.diagnostics : [];
+  const queryErrorDisplay = resolveQueryError(queryResult.error);
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] space-y-3">
@@ -428,16 +441,16 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
         </Card>
       )}
 
-      {/* Diagnostics / Error Banner */}
-      {diagnostics.length > 0 && (
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs space-y-1">
+      {/* Diagnostics / Error Banner (LQL diagnostics and generic/network failures) */}
+      {queryErrorDisplay && (
+        <div role="alert" className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs space-y-1">
           <div className="flex items-center gap-1.5 text-red-400 font-semibold">
             <AlertTriangle className="h-4 w-4" />
-            <span>LQL Diagnostic Errors</span>
+            <span>{queryErrorDisplay.title}</span>
           </div>
-          {diagnostics.map((d, i) => (
+          {queryErrorDisplay.messages.map((message, i) => (
             <p key={i} className="font-mono text-red-300 pl-5">
-              • {d.message}
+              • {message}
             </p>
           ))}
         </div>

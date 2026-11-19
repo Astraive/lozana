@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useCollectorHealth } from "@/lib/hooks";
 import { listDatabaseConnections } from "@/lib/api/events";
+import { errorMessage, formatHealthMetric, isSinkHealthy } from "@/lib/page-logic";
 import { useAppStore } from "@/stores/app.store";
 import { LiveTailView } from "@/components/live/LiveTailView";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import {
   Trash2,
   Activity,
   Radio,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function CollectorPage() {
@@ -91,6 +93,16 @@ export default function CollectorPage() {
         <LiveTailView />
       ) : (
         <div className="space-y-6">
+          {health.isError && (
+            <div role="alert" className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/[0.05] p-4">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Failed to load collector health</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{errorMessage(health.error)}</p>
+              </div>
+            </div>
+          )}
+
           {/* Health Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-card border-border">
@@ -101,6 +113,7 @@ export default function CollectorPage() {
                 </span>
                 <div className="text-2xl font-bold font-mono text-foreground">
                   {formatMetricValue(d?.events_ingested, "—")}
+                  {formatHealthMetric(d?.events_ingested)}
                 </div>
               </CardContent>
             </Card>
@@ -113,6 +126,7 @@ export default function CollectorPage() {
                 </span>
                 <div className="text-2xl font-bold font-mono text-emerald-400">
                   {formatMetricValue(d?.events_accepted, "—")}
+                  {formatHealthMetric(d?.events_accepted)}
                 </div>
               </CardContent>
             </Card>
@@ -125,6 +139,7 @@ export default function CollectorPage() {
                 </span>
                 <div className="text-2xl font-bold font-mono text-amber-400">
                   {formatMetricValue(d?.events_quarantined, "0")}
+                  {formatHealthMetric(d?.events_quarantined)}
                 </div>
               </CardContent>
             </Card>
@@ -137,6 +152,7 @@ export default function CollectorPage() {
                 </span>
                 <div className="text-2xl font-bold font-mono text-red-400">
                   {formatMetricValue(d?.dlq_size, "0")}
+                  {formatHealthMetric(d?.dlq_size)}
                 </div>
               </CardContent>
             </Card>
@@ -169,29 +185,32 @@ export default function CollectorPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {d.sinks.map((sink, idx) => (
-                      <TableRow key={idx} className="border-b border-border/40 text-xs">
-                        <TableCell className="font-mono font-semibold">{sink.name}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] font-mono capitalize ${
-                              sink.status === "healthy" || sink.status === "ok"
-                                ? "text-emerald-400 border-emerald-500/30"
-                                : "text-amber-400 border-amber-500/30"
-                            }`}
-                          >
-                            {sink.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {sink.events_written.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-red-400">
-                          {sink.errors}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {d.sinks.map((sink, idx) => {
+                      const healthy = isSinkHealthy(sink);
+                      return (
+                        <TableRow key={idx} className="border-b border-border/40 text-xs">
+                          <TableCell className="font-mono font-semibold">{sink.name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-mono capitalize ${
+                                healthy
+                                  ? "text-emerald-400 border-emerald-500/30"
+                                  : "text-amber-400 border-amber-500/30"
+                              }`}
+                            >
+                              {sink.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {sink.events_written.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-red-400">
+                            {sink.errors}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

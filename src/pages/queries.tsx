@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -190,15 +190,16 @@ export default function QueriesPage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Link to={`/explore?q=${encodeURIComponent(panel.query)}`}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                      >
-                        <Play className="h-3 w-3 mr-1" />
-                        Run
-                      </Button>
+                    <Link
+                      to={`/explore?q=${encodeURIComponent(panel.query)}`}
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "sm",
+                        className: "h-7 text-xs border-primary/30 text-primary hover:bg-primary/10",
+                      })}
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Run
                     </Link>
                     <Button
                       variant="ghost"
