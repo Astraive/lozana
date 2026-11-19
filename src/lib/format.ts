@@ -6,6 +6,19 @@ export function formatNumber(n: number): string {
 }
 
 /**
+ * Format a collector metric value, distinguishing a valid `0` from missing data.
+ *
+ * Uses an explicit nullish check rather than truthiness so that `0` is rendered
+ * as "0" while only `null`/`undefined` fall back to `missingFallback`.
+ */
+export function formatMetricValue(
+  value: number | null | undefined,
+  missingFallback = "—",
+): string {
+  return value != null ? value.toLocaleString() : missingFallback;
+}
+
+/**
  * Format bytes as a human-readable string (e.g. "1.5 MB").
  */
 export function formatBytes(bytes: number): string {

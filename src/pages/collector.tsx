@@ -4,6 +4,7 @@ import { listDatabaseConnections } from "@/lib/api/events";
 import { useAppStore } from "@/stores/app.store";
 import { LiveTailView } from "@/components/live/LiveTailView";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { formatMetricValue } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -99,7 +100,7 @@ export default function CollectorPage() {
                   Events Ingested
                 </span>
                 <div className="text-2xl font-bold font-mono text-foreground">
-                  {d?.events_ingested ? d.events_ingested.toLocaleString() : "—"}
+                  {formatMetricValue(d?.events_ingested, "—")}
                 </div>
               </CardContent>
             </Card>
@@ -111,7 +112,7 @@ export default function CollectorPage() {
                   Accepted
                 </span>
                 <div className="text-2xl font-bold font-mono text-emerald-400">
-                  {d?.events_accepted ? d.events_accepted.toLocaleString() : "—"}
+                  {formatMetricValue(d?.events_accepted, "—")}
                 </div>
               </CardContent>
             </Card>
@@ -123,7 +124,7 @@ export default function CollectorPage() {
                   Quarantined
                 </span>
                 <div className="text-2xl font-bold font-mono text-amber-400">
-                  {d?.events_quarantined ? d.events_quarantined.toLocaleString() : "0"}
+                  {formatMetricValue(d?.events_quarantined, "0")}
                 </div>
               </CardContent>
             </Card>
@@ -135,7 +136,7 @@ export default function CollectorPage() {
                   DLQ Size
                 </span>
                 <div className="text-2xl font-bold font-mono text-red-400">
-                  {d?.dlq_size ? d.dlq_size.toLocaleString() : "0"}
+                  {formatMetricValue(d?.dlq_size, "0")}
                 </div>
               </CardContent>
             </Card>
