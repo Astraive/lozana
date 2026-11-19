@@ -4,6 +4,7 @@ import { CopyButton } from "@/components/common/CopyButton"
 
 interface JsonViewerProps {
   data: unknown
+  /** Desired expansion state for every node. Changes after mount re-expand/collapse the tree. */
   expanded?: boolean
   className?: string
 }
@@ -46,6 +47,19 @@ function withAncestor(ancestors: Set<object> | undefined, value: object): Set<ob
 
 function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNodeProps) {
   const [expanded, setExpanded] = React.useState(defaultExpanded)
+  expanded: boolean
+}
+
+function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
+  const [isExpanded, setIsExpanded] = React.useState(expanded)
+  const [prevExpanded, setPrevExpanded] = React.useState(expanded)
+
+  // Keep the local toggle state in sync with the prop so changing `expanded`
+  // after mount also expands/collapses nodes that are already rendered.
+  if (expanded !== prevExpanded) {
+    setPrevExpanded(expanded)
+    setIsExpanded(expanded)
+  }
 
   // A reference already present on the current path closes a cycle. Render a
   // placeholder instead of recursing forever (which overflows the stack).
@@ -139,9 +153,9 @@ function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNod
       <div style={{ paddingLeft: depth * 16 }}>
         <span
           className="cursor-pointer hover:bg-primary/10 rounded px-0.5 select-none transition-colors"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setIsExpanded(!isExpanded)}
         >
-          <SyntaxSpan type="bracket">{expanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
+          <SyntaxSpan type="bracket">{isExpanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
           {keyName !== undefined && (
             <>
               <SyntaxSpan type="key">"{keyName}"</SyntaxSpan>
@@ -149,12 +163,12 @@ function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNod
             </>
           )}
           <SyntaxSpan type="bracket">[</SyntaxSpan>
-          {!expanded && (
+          {!isExpanded && (
             <span className="text-muted-foreground"> {value.length} items </span>
           )}
-          {!expanded && <SyntaxSpan type="bracket">]</SyntaxSpan>}
+          {!isExpanded && <SyntaxSpan type="bracket">]</SyntaxSpan>}
         </span>
-        {expanded && (
+        {isExpanded && (
           <>
             {value.map((item, i) => (
               <JsonNode
@@ -163,6 +177,7 @@ function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNod
                 depth={depth + 1}
                 defaultExpanded={defaultExpanded}
                 ancestors={childAncestors}
+                expanded={expanded}
               />
             ))}
             <SyntaxSpan type="bracket">]</SyntaxSpan>
@@ -193,9 +208,9 @@ function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNod
       <div style={{ paddingLeft: depth * 16 }}>
         <span
           className="cursor-pointer hover:bg-primary/10 rounded px-0.5 select-none transition-colors"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setIsExpanded(!isExpanded)}
         >
-          <SyntaxSpan type="bracket">{expanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
+          <SyntaxSpan type="bracket">{isExpanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
           {keyName !== undefined && (
             <>
               <SyntaxSpan type="key">"{keyName}"</SyntaxSpan>
@@ -203,12 +218,12 @@ function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNod
             </>
           )}
           <SyntaxSpan type="bracket">{"{"}</SyntaxSpan>
-          {!expanded && (
+          {!isExpanded && (
             <span className="text-muted-foreground"> {entries.length} keys </span>
           )}
-          {!expanded && <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>}
+          {!isExpanded && <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>}
         </span>
-        {expanded && (
+        {isExpanded && (
           <>
             {entries.map(([k, v]) => (
               <JsonNode
@@ -218,6 +233,7 @@ function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNod
                 depth={depth + 1}
                 defaultExpanded={defaultExpanded}
                 ancestors={childAncestors}
+                expanded={expanded}
               />
             ))}
             <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>
@@ -256,6 +272,7 @@ export function JsonViewer({ data, expanded = true, className }: JsonViewerProps
       </div>
       <div className="rounded-lg border border-border bg-card/50 p-4 overflow-auto font-mono text-sm leading-relaxed">
         <JsonNode value={data} depth={0} defaultExpanded={expanded} ancestors={new Set()} />
+        <JsonNode value={data} depth={0} expanded={expanded} />
       </div>
     </div>
   )
