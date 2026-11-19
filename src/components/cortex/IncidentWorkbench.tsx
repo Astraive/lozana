@@ -16,6 +16,7 @@ import {
   Terminal,
   History,
   Sparkles,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { CortexReconstruction, IncidentGraph } from "@/types/cortex";
@@ -29,6 +30,7 @@ interface IncidentWorkbenchProps {
 export function IncidentWorkbench({
   reconstruction,
   incidentGraph,
+  onViewTrace,
 }: IncidentWorkbenchProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<Record<string, "helpful" | "unhelpful">>({});
@@ -109,6 +111,21 @@ export function IncidentWorkbench({
                   style={{ width: `${confidencePct}%` }}
                 />
               </div>
+
+              {onViewTrace && reconstruction.incident_id && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title={`View trace ${reconstruction.incident_id}`}
+                  data-trace-id={reconstruction.incident_id}
+                  onClick={() => onViewTrace(reconstruction.incident_id)}
+                  className="h-7 mt-1 gap-1.5 text-[11px] font-mono text-purple-300 border-purple-500/30 hover:text-purple-200 hover:bg-purple-500/10"
+                >
+                  <GitBranch className="h-3 w-3" />
+                  View Trace
+                </Button>
+              )}
             </div>
           </div>
 
