@@ -1,3 +1,6 @@
+> [!WARNING]
+> **HISTORICAL — v0.2.3.** This document is a point-in-time snapshot of the v0.2.3 codebase and is retained only for historical context. Its findings are **outdated and do not reflect current `main`**: the reported CRITICAL/HIGH issues (missing 404 route, missing ErrorBoundary, SQLi in the old `wasm.ts`, dark-only Monaco, gold contrast, missing ESLint config) have all been fixed, and the unreferenced modules it lists have since been removed. For the current state of the project, see [README.md](../README.md), [RELEASE.md](../RELEASE.md), and [ports.md](ports.md).
+
 # Frontend Review: Lozana v0.2.3 Dashboard
 
 Date: 2026-05-27
