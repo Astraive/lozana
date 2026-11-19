@@ -5,6 +5,7 @@ import { PanelEditorModal } from "./PanelEditorModal";
 import { Button } from "@/components/ui/button";
 import { Plus, LayoutGrid } from "lucide-react";
 import type { Dashboard, Panel } from "@/types/dashboard";
+import { DEFAULT_NEW_PANEL, resolveCreatedPanel } from "./new-panel";
 
 interface DashboardGridProps {
   dashboard: Dashboard;
@@ -33,21 +34,11 @@ export function DashboardGrid({ dashboard, onEditPanel }: DashboardGridProps) {
   };
 
   const handleAddDefaultPanel = () => {
-    const newId = addPanelToActiveDashboard({
-      title: "New Time Series",
-      type: "timeseries",
-      query: "from events | summarize event_count = count() by bin(timestamp, 5m) | sort bin asc",
-      position: { x: 0, y: 100, w: 6, h: 4 },
-      visualization: { chartType: "area", color: "#3b82f6" },
-    });
-    const created = dashboard.panels.find((p) => p.id === newId) || {
-      id: newId,
-      title: "New Time Series",
-      type: "timeseries" as const,
-      query: "from events | summarize event_count = count() by bin(timestamp, 5m) | sort bin asc",
-      position: { x: 0, y: 100, w: 6, h: 4 },
-      visualization: { chartType: "area" as const, color: "#3b82f6" },
-    };
+    const newId = addPanelToActiveDashboard(DEFAULT_NEW_PANEL);
+    const created = resolveCreatedPanel(
+      newId,
+      useDashboardStore.getState().getActiveDashboard()
+    );
     handleOpenEdit(created);
   };
 
