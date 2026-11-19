@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HeatmapChart } from "@/components/charts/HeatmapChart";
+import { computeValueRange, HeatmapChart } from "@/components/charts/HeatmapChart";
 
 describe("HeatmapChart composite cell key", () => {
   it("keeps distinct cells separate when labels contain the ':' delimiter", () => {
@@ -16,7 +16,8 @@ describe("HeatmapChart composite cell key", () => {
 
     expect(html).toContain('title="a:b, c: 5"');
     expect(html).toContain('title="a, b:c: 9"');
-import { computeValueRange, HeatmapChart } from "@/components/charts/HeatmapChart";
+  });
+});
 
 describe("HeatmapChart value range", () => {
   it("computes the correct min and max from the data", () => {

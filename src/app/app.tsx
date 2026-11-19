@@ -1,6 +1,4 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
-import { lazy, Suspense } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
@@ -37,6 +35,8 @@ function PageLoader() {
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+}
+
 /**
  * Client-side route gating (defense in depth). The backend is authoritative
  * for validating the API key; this guard only redirects users who have not

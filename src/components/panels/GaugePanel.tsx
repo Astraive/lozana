@@ -1,6 +1,6 @@
 import { PanelWrapper } from "./PanelWrapper";
 import { computeGaugeAngle, computeGaugePercentage } from "@/lib/gauge";
-import { computeGaugePercentage, finiteOr } from "@/lib/panel-math";
+import { finiteOr } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
 
 interface GaugePanelProps {

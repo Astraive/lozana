@@ -438,7 +438,6 @@ export class LiveStreamClient {
         return;
       }
 
-      const socket = new WebSocket(url, buildWebSocketProtocols(credential));
       const socket = new WebSocket(url, buildWebSocketProtocols());
       this.ws = socket;
       socket.onopen = () => {

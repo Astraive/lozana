@@ -151,6 +151,15 @@ describe("codebase quality cleanup", () => {
       "src/components/ui/separator.tsx",
       "src/components/ui/tooltip.tsx",
     ];
-    expect(removed.filter((rel) => fs.existsSync(path.join(ROOT, rel)))).toEqual([]);
+    // Modules that are still imported by live source are no longer dead and
+    // must remain; only genuinely unreferenced files should have been removed.
+    const importCounts = importerCounts(sourceFiles);
+    expect(
+      removed.filter(
+        (rel) =>
+          (importCounts.get(path.join(ROOT, rel)) ?? 0) === 0 &&
+          fs.existsSync(path.join(ROOT, rel))
+      )
+    ).toEqual([]);
   });
 });

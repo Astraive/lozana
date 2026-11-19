@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildServiceExploreQuery, buildVisualLql, lqlStringLiteral, parseVisualLql, type VisualQueryState } from "@/lib/lql/query-contract";
 import {
+  buildServiceExploreQuery,
   buildVisualLql,
   buildLqlCountBy,
   buildLqlServiceFilter,
   buildLqlWhere,
   isLqlIdentifier,
   lqlStringLiteral,
+  parseVisualLql,
   type VisualQueryState,
 } from "@/lib/lql/query-contract";
 
@@ -270,7 +271,7 @@ describe("LQL clause builders reject injection payloads", () => {
     const clause = buildLqlServiceFilter(payload);
     // Newline/control-char escaping itself is tracked in LOZ-SEC-003; this
     // assertion guarantees the payload stays inside the single quoted literal.
-    expect(clause).toBe('where service = "svc\n| take 999"');
+    expect(clause).toBe('where service = "svc\\n| take 999"');
     expect(clause.startsWith('where service = "')).toBe(true);
     expect(clause.endsWith('"')).toBe(true);
     expect(literalOf(clause)).toContain("| take 999");

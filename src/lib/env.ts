@@ -9,8 +9,3 @@ export const wsUrl: string = import.meta.env.VITE_WS_URL || "";
 // here so existing imports from this module keep working without a second
 // (previously destructive) implementation.
 export { getApiKey } from "./api/client";
-export const wsUrl: string = import.meta.env.VITE_LOZANA_WS_URL || "";
-export function getApiKey(): string {
-  localStorage.removeItem("loza-api-key");
-  return sessionStorage.getItem("loza-api-key") || "";
-}

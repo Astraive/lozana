@@ -1,6 +1,5 @@
 import { PanelWrapper } from "./PanelWrapper";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
-import { buildTimeSeriesData } from "@/lib/timeseries-data";
 import { finiteOr, firstFiniteValue } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
 
@@ -32,7 +31,6 @@ export function TimeSeriesPanel({ panel, onEdit, onDelete, onDuplicate }: TimeSe
           );
         }
 
-        const chartData = buildTimeSeriesData(rows, panel.visualization?.yField);
         const chartData = rows.map((r) => {
           const timestamp = String(r.bin ?? r.bin_timestamp ?? r.timestamp ?? "");
           const value =

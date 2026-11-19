@@ -68,7 +68,6 @@ Server-only variables (never exposed to the browser):
 | `LOZA_API_KEY` | Collector API key injected by the Vite dev proxy as `Authorization: Bearer …` | (empty) |
 | `VITE_CORTEX_URL` | Cortex API URL | `http://localhost:9312` |
 | `VITE_WS_URL` | WebSocket URL | `ws://localhost:9308/ws/tail` |
-| `VITE_LOZA_API_KEY` | API key for collector auth | (empty) |
 | `VITE_LOZANA_ALLOWED_ORIGINS` | Comma-separated allowlist of non-loopback API origins | (empty) |
 
 The plaintext defaults are for localhost-only development. Non-loopback
@@ -115,7 +114,7 @@ the baked-in defaults.
 
 Run `bun run check:env` to verify that the documented variables match the ones used by the code.
 
-> Migration: `VITE_LOZA_API_KEY` has been removed. Set `LOZA_API_KEY` for local development instead. In production, do not embed a key in the SPA — configure your reverse proxy or backend to add the `Authorization` header server-side.
+> Migration: the client-exposed API key variable has been removed. Set `LOZA_API_KEY` for local development instead. In production, do not embed a key in the SPA — configure your reverse proxy or backend to add the `Authorization` header server-side.
 ## Authentication model
 
 Lozana uses API-key authentication. The **collector API token** is entered on the

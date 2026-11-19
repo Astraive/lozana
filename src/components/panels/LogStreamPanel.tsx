@@ -30,12 +30,12 @@ export function LogStreamPanel({ panel, onEdit, onDelete, onDuplicate }: LogStre
   };
 
   return (
-    <PanelWrapper panel={panel} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} enabled={!paused}>
     <PanelWrapper
       panel={panel}
       onEdit={onEdit}
       onDelete={onDelete}
       onDuplicate={onDuplicate}
+      enabled={!paused}
       refetchInterval={paused ? false : 5_000}
     >
       {(data, isLoading) => {

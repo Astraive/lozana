@@ -78,18 +78,6 @@ export function validateBaseUrl(rawUrl: string): URL {
   return url;
 }
 
-function resolveBaseUrl(
-  candidates: readonly (string | null | undefined)[],
-  fallback: string
-): string {
-  for (const candidate of candidates) {
-    if (!candidate || typeof candidate !== "string") continue;
-    const url = candidate.trim();
-    try {
-      validateBaseUrl(url);
-      return url.replace(/\/+$/, "");
-    } catch {
-      // Reject malformed or untrusted configured URLs.
 /**
  * Pick the first configured URL that passes policy. Values from localStorage
  * (or persisted store state) are untrusted, so an invalid entry is discarded
@@ -131,16 +119,6 @@ export function getCollectorUrl(): string {
   } catch {
     // fallback outside react context
   }
-  return resolveBaseUrl(
-    [
-      storeUrl,
-      typeof localStorage !== "undefined" ? localStorage.getItem("loza-collector-url") : null,
-      import.meta.env.VITE_LOZANA_API_URL as string | undefined,
-    ],
-  return (
-    readStoredValue("loza-collector-url") ||
-    (import.meta.env.VITE_LOZANA_API_URL as string) ||
-    "http://localhost:9308"
   return resolveEndpoint(
     [
       storeUrl,
@@ -159,16 +137,6 @@ export function getCortexUrl(): string {
   } catch {
     // fallback
   }
-  return resolveBaseUrl(
-    [
-      storeUrl,
-      typeof localStorage !== "undefined" ? localStorage.getItem("loza-cortex-url") : null,
-      import.meta.env.VITE_CORTEX_URL as string | undefined,
-    ],
-  return (
-    readStoredValue("loza-cortex-url") ||
-    (import.meta.env.VITE_CORTEX_URL as string) ||
-    "http://localhost:9312"
   return resolveEndpoint(
     [
       storeUrl,
@@ -187,17 +155,12 @@ export function getWebSocketUrl(): string {
   } catch {
     // fallback outside react context
   }
-  return (
-    readStoredValue("loza-ws-url") ||
-    (import.meta.env.VITE_WS_URL as string) ||
-    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-ws-url") : null) ||
-    (import.meta.env.VITE_LOZANA_WS_URL as string) ||
-    "ws://localhost:9308/ws/tail"
   return resolveEndpoint(
     [
       storeUrl,
       typeof localStorage !== "undefined" ? localStorage.getItem("loza-ws-url") : null,
       import.meta.env.VITE_WS_URL as string,
+      import.meta.env.VITE_LOZANA_WS_URL as string,
     ],
     "ws://localhost:9308/ws/tail",
     "websocket"
@@ -235,15 +198,6 @@ export function getApiKey(): string {
 }
 
 /**
- * Cortex is a separate trust domain. Its credential (if any) is deliberately
- * distinct from the collector key so a collector secret is never forwarded to
- * the Cortex service. Set it via loza-cortex-api-key / VITE_CORTEX_API_KEY.
- */
-export function getCortexApiKey(): string {
-  return (
-    (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("loza-cortex-api-key") : null) ||
-    (import.meta.env.VITE_CORTEX_API_KEY as string | undefined) ||
-    ""
  * Cortex is a separate trust domain with its own credential. This key is
  * deliberately distinct from the collector key so collector secrets are never
  * forwarded to Cortex.
@@ -288,7 +242,6 @@ export function resolveCollectorPath(path: string): string {
   return path;
 }
 
-/** Headers shared by every JSON request. No credential is attached here. */
 /** Headers shared by every JSON request (no credentials attached here). */
 function buildBaseHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
@@ -300,24 +253,11 @@ function buildBaseHeaders(init?: RequestInit): Headers {
 }
 
 /**
- * Collector-scoped headers. Only this builder attaches the collector API key
- * and the collector tenancy headers.
- */
-function buildCollectorHeaders(init?: RequestInit): Headers {
-  const headers = buildBaseHeaders(init);
-
-function attachBearer(headers: Headers, token: string, baseUrl: string): void {
-  if (!token || !isCredentialSafeTarget(baseUrl)) return;
-  headers.set("Authorization", `Bearer ${token}`);
-}
-
-/**
  * Collector-scoped headers. Only these may carry the collector API key and
  * the collector tenancy headers, and only to a validated collector target.
  */
-function buildCollectorHeaders(baseUrl: string, init?: RequestInit): Headers {
+function buildCollectorHeaders(init?: RequestInit): Headers {
   const headers = buildBaseHeaders(init);
-  attachBearer(headers, getApiKey(), baseUrl);
   const key = getApiKey();
   if (key) {
     // A bearer credential must never be attached to a plaintext remote URL.
@@ -344,16 +284,10 @@ function buildCollectorHeaders(baseUrl: string, init?: RequestInit): Headers {
  * Cortex-scoped headers. Cortex is a different trust domain: the collector key
  * and collector tenancy headers MUST NOT be forwarded to it.
  */
-function buildCortexHeaders(baseUrl: string, init?: RequestInit): Headers {
+function buildCortexHeaders(init?: RequestInit): Headers {
   const headers = buildBaseHeaders(init);
   // A credential meant for the collector must never travel to Cortex.
   headers.delete("Authorization");
-  attachBearer(headers, getCortexApiKey(), baseUrl);
- * and collector tenancy headers MUST NOT be forwarded to it. If Cortex needs
- * auth, it uses its own separate credential.
- */
-function buildCortexHeaders(init?: RequestInit): Headers {
-  const headers = buildBaseHeaders(init);
 
   const key = getCortexApiKey();
   if (key) {
@@ -380,7 +314,6 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
   try {
     const res = await fetch(`${baseUrl}${resolvedPath}`, {
       ...init,
-      headers: buildCollectorHeaders(baseUrl, init),
       headers: buildCollectorHeaders(init),
       signal: controller.signal,
     });
@@ -431,7 +364,6 @@ export async function fetchCortexJSON<T>(path: string, init?: RequestInit): Prom
   try {
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
-      headers: buildCortexHeaders(baseUrl, init),
       headers: buildCortexHeaders(init),
       signal: controller.signal,
     });
@@ -465,7 +397,6 @@ export async function testCollectorConnection(urlOverride?: string): Promise<{
   try {
     const res = await fetch(`${baseUrl}/health`, {
       method: "GET",
-      headers: buildCollectorHeaders(baseUrl),
       headers: buildCollectorHeaders(),
       signal: AbortSignal.timeout(5000),
     });
@@ -500,7 +431,6 @@ export async function testCortexConnection(urlOverride?: string): Promise<{
     // Try healthz or root
     const res = await fetch(`${baseUrl}/healthz`, {
       method: "GET",
-      headers: buildCortexHeaders(baseUrl),
       headers: buildCortexHeaders(),
       signal: AbortSignal.timeout(5000),
     });

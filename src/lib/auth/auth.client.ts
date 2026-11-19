@@ -1,5 +1,4 @@
 import { getApiKey } from "../api/client";
-import { getApiKey } from "@/lib/api/client";
 
 /**
  * Returns Authorization headers for collector requests if a collector API key

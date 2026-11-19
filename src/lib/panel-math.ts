@@ -70,9 +70,17 @@ export function isFiniteHeatmapPoint(point: HeatmapPoint | null | undefined): po
 
 /** Empty/degenerate input yields a neutral finite range instead of Infinity/-Infinity. */
 export function getHeatmapValueRange(data: HeatmapPoint[]): { min: number; max: number } {
-  const values = data.filter(isFiniteHeatmapPoint).map((d) => d.value);
-  if (values.length === 0) return { min: 0, max: 0 };
-  return { min: Math.min(...values), max: Math.max(...values) };
+  let min = Infinity;
+  let max = -Infinity;
+  let found = false;
+  for (const point of data) {
+    if (!isFiniteHeatmapPoint(point)) continue;
+    found = true;
+    if (point.value < min) min = point.value;
+    if (point.value > max) max = point.value;
+  }
+  if (!found) return { min: 0, max: 0 };
+  return { min, max };
 }
 
 /**

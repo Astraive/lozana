@@ -1,8 +1,7 @@
 import { useEffect, useReducer, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/cn"
-import { useCommandMenu } from "@/components/layout/command-menu-context"
-import { getArrowKeyIndex, isCommandPaletteShortcut } from "@/lib/ui-utils"
+import { isCommandPaletteShortcut } from "@/lib/ui-utils"
 import {
   createInitialMenuState,
   menuReducer,
@@ -52,11 +51,6 @@ const COMMANDS: Command[] = [
 export function CommandMenu() {
   const [state, dispatch] = useReducer(menuReducer, undefined, createInitialMenuState)
   const { open, filter, activeIndex } = state
-  // Open state lives in a shared context so the sidebar hint can open the menu
-  // directly instead of dispatching a synthetic keyboard event on `window`.
-  const { open, setOpen, toggleMenu } = useCommandMenu()
-  const [filter, setFilter] = useState("")
-  const [activeIndex, setActiveIndex] = useState(0)
   const navigate = useNavigate()
   const listRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -66,12 +60,11 @@ export function CommandMenu() {
       if (isCommandPaletteShortcut(e)) {
         e.preventDefault()
         dispatch({ type: "toggle" })
-        toggleMenu()
       }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [toggleMenu])
+  }, [])
 
 
   // Filter commands
@@ -106,11 +99,6 @@ export function CommandMenu() {
         case "ArrowUp":
           e.preventDefault()
           dispatch({ type: "setActiveIndex", activeIndex: Math.max(activeIndex - 1, 0) })
-          setActiveIndex((prev) => getArrowKeyIndex("ArrowDown", prev, filtered.length))
-          break
-        case "ArrowUp":
-          e.preventDefault()
-          setActiveIndex((prev) => getArrowKeyIndex("ArrowUp", prev, filtered.length))
           break
         case "Enter":
           e.preventDefault()

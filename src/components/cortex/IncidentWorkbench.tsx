@@ -44,6 +44,8 @@ export function resolveFeedbackVote(
 ): Record<string, FeedbackVote> {
   if (!submissionSucceeded) return prev;
   return { ...prev, [remediationId]: vote };
+}
+
 /**
  * Attempt a clipboard write and report whether it actually succeeded.
  *
@@ -71,7 +73,6 @@ export function IncidentWorkbench({
 }: IncidentWorkbenchProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<Record<string, FeedbackVote>>({});
-  const [feedbackState, setFeedbackState] = useState<Record<string, "helpful" | "unhelpful">>({});
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -83,22 +84,26 @@ export function IncidentWorkbench({
     };
   }, []);
 
-  const handleCopy = async (text: string, id: string) => {
-    const copied = await copyTextToClipboard(text);
-    if (!copied) {
-      toast.error("Failed to copy command to clipboard");
-      return;
-    }
-    setCopiedId(id);
-    toast.success("Command copied to clipboard");
-
+  const handleCopy = (text: string, id: string) => {
     if (copyResetTimerRef.current !== null) {
       clearTimeout(copyResetTimerRef.current);
     }
-    copyResetTimerRef.current = setTimeout(() => {
+    const timer = setTimeout(() => {
       copyResetTimerRef.current = null;
       setCopiedId(null);
     }, 1500);
+    copyResetTimerRef.current = timer;
+
+    void copyTextToClipboard(text).then((copied) => {
+      if (!copied) {
+        clearTimeout(timer);
+        if (copyResetTimerRef.current === timer) copyResetTimerRef.current = null;
+        toast.error("Failed to copy command to clipboard");
+        return;
+      }
+      setCopiedId(id);
+      toast.success("Command copied to clipboard");
+    });
   };
 
   const handleFeedback = async (remediationId: string, vote: FeedbackVote) => {

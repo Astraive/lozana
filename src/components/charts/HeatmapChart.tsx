@@ -69,16 +69,11 @@ export function HeatmapChart({
   const xLabels = React.useMemo(() => [...new Set(validData.map((d) => d.x))], [validData])
   const yLabels = React.useMemo(() => [...new Set(validData.map((d) => d.y))], [validData])
 
-  const valueRange = React.useMemo(() => computeValueRange(data), [data])
-
-  const dataMap = React.useMemo(() => {
-    const map = new Map<string, number>()
-    data.forEach((d) => map.set(cellKey(d.x, d.y), d.value))
   const valueRange = React.useMemo(() => getHeatmapValueRange(validData), [validData])
 
   const dataMap = React.useMemo(() => {
     const map = new Map<string, number>()
-    validData.forEach((d) => map.set(`${d.x}:${d.y}`, d.value))
+    validData.forEach((d) => map.set(cellKey(d.x, d.y), d.value))
     return map
   }, [validData])
 

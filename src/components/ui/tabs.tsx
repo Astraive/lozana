@@ -73,15 +73,7 @@ interface TabsTriggerProps
   value: string
 }
 
-function TabsTrigger({ className, value, onClick, ...props }: TabsTriggerProps) {
-  const { value: selectedValue, onValueChange } =
-    React.useContext(TabsContext)
-  const isActive = selectedValue === value
-
-  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-    onClick?.(event)
-    onValueChange(value)
-function TabsTrigger({ className, value, onKeyDown, ...props }: TabsTriggerProps) {
+function TabsTrigger({ className, value, onClick, onKeyDown, ...props }: TabsTriggerProps) {
   const { value: selectedValue, onValueChange, baseId } =
     React.useContext(TabsContext)
   const isActive = selectedValue === value
@@ -115,10 +107,8 @@ function TabsTrigger({ className, value, onKeyDown, ...props }: TabsTriggerProps
         !isActive && "hover:text-foreground hover:bg-muted/80",
         className
       )}
-      onClick={handleClick}
-      onClick={() => onValueChange(value)}
+      onClick={chainEventHandlers(onClick, () => onValueChange(value))}
       onKeyDown={chainEventHandlers(onKeyDown, handleKeyDown)}
-      {...props}
     />
   )
 }

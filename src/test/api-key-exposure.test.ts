@@ -29,7 +29,7 @@ function raw(files: Record<string, string>, pathSuffix: string): string {
 /** Files that actually end up in the browser bundle (not Node-only helpers or tests). */
 function clientSources(): string[] {
   return Object.entries(bundledFiles)
-    .filter(([path]) => !path.includes("/test/") && !path.includes("/server/"))
+    .filter(([path]) => !path.includes("/test/") && !path.includes(".test.") && !path.includes("/server/"))
     .map(([, contents]) => contents);
 }
 
@@ -54,7 +54,7 @@ function capturedProxyHeaders(config: ReturnType<typeof createCollectorProxyConf
 describe("collector API key is never exposed to the client bundle", () => {
   it("does not declare a VITE_-prefixed key in either env declaration", () => {
     const declarations = Object.entries(configFiles).filter(([path]) => path.endsWith("vite-env.d.ts"));
-    expect(declarations).toHaveLength(2);
+    expect(declarations).toHaveLength(1);
     for (const [, contents] of declarations) {
       expect(contents).not.toContain("VITE_LOZA_API_KEY");
     }

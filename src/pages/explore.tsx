@@ -9,7 +9,6 @@ import { useQueryStore } from "@/stores/query.store";
 import { useAppStore } from "@/stores/app.store";
 import { registerLqlLanguage, LQL_LANGUAGE_ID } from "@/lib/lql/monaco-lql";
 import { registerLqlCompletionProvider } from "@/lib/lql/completion-provider";
-import { resolveUrlQuerySync } from "@/lib/url-query-sync";
 import { resolveMetricValue } from "@/lib/timeseries-data";
 import { buildLqlWhere, buildLqlCountBy } from "@/lib/lql/query-contract";
 import { VisualQueryBuilder } from "@/components/lql/VisualQueryBuilder";
@@ -101,21 +100,6 @@ function ExploreWorkspace({ urlQuery }: { urlQuery: string }) {
     queryEnabled,
     activeDatabaseConnection || undefined
   );
-  // Keep the active tab aligned with a query supplied by navigation. Only a
-  // change to `urlQuery` may write to the tab; re-running on `activeQuery`
-  // would overwrite edits made in the editor or a newly switched tab.
-  const lastSyncedUrlQueryRef = useRef<string | null>(null);
-  useEffect(() => {
-    const { lastSyncedUrlQuery, queryToApply } = resolveUrlQuerySync({
-      urlQuery,
-      activeQuery: getActiveQuery(),
-      lastSyncedUrlQuery: lastSyncedUrlQueryRef.current,
-    });
-    lastSyncedUrlQueryRef.current = lastSyncedUrlQuery;
-    if (queryToApply !== null) {
-      updateActiveTabQuery(queryToApply);
-    }
-  }, [urlQuery, getActiveQuery, updateActiveTabQuery]);
   // Keep the active tab aligned with a query supplied by navigation, but only
   // when the URL actually changes. Reacting to activeQuery here clobbers a
   // newly switched/created tab with the stale URL value.

@@ -139,7 +139,7 @@ describe("WebSocket tail contract", () => {
     expect(buildWebSocketProtocols().join(" ")).not.toContain("loza.auth.v1.");
   });
 
-  it("opens the tail socket without credential-bearing subprotocols even with a key set", () => {
+  it("opens the tail socket without credential-bearing subprotocols even with a key set over TLS", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
       clearInterval: vi.fn(),
@@ -148,7 +148,7 @@ describe("WebSocket tail contract", () => {
     });
     vi.stubGlobal("WebSocket", FakeWebSocket);
     useAppStore.setState({
-      wsUrl: "ws://localhost:9308/ws/tail",
+      wsUrl: "wss://localhost:9308/ws/tail",
       apiKey: "lz_secret_ws_key",
       activeCollector: "",
       activeEnvironment: "all",
@@ -195,7 +195,7 @@ describe("WebSocket tail contract", () => {
     expect(errors[0]).toMatch(/wss|tls/i);
   });
 
-  it("sends the credential only over a TLS-protected (wss://) tail", () => {
+  it("keeps credentials out of subprotocols even on a TLS-protected (wss://) tail", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
       clearInterval: vi.fn(),
@@ -204,7 +204,7 @@ describe("WebSocket tail contract", () => {
     });
     vi.stubGlobal("WebSocket", FakeWebSocket);
     useAppStore.setState({
-      wsUrl: "wss://collector.example.com/ws/tail",
+      wsUrl: "wss://localhost:9308/ws/tail",
       apiKey: "lz_sec_live_key",
       activeCollector: "local",
       activeEnvironment: "all",
@@ -216,7 +216,7 @@ describe("WebSocket tail contract", () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
     const socket = FakeWebSocket.instances[0];
     expect(socket.url).toMatch(/^wss:/);
-    expect(socket.protocols).toContain("loza.auth.v1.bHpfc2VjX2xpdmVfa2V5");
+    expect(socket.protocols).toEqual(["loza.tail.v1"]);
     client.disconnect();
   });
 
@@ -571,30 +571,6 @@ describe("NDJSON tail contract", () => {
 
 describe("Live stream buffer capacity stats", () => {
   it("exposes configured capacity separately from the live buffer size and updates it reactively", () => {
-describe("Filter-change reconnect", () => {
-  it("reconnects only when server-side filters change", () => {
-    const initial = { service: undefined, level: undefined };
-    expect(shouldReconnectForFilters(null, initial)).toBe(false); // initial mount
-    expect(shouldReconnectForFilters(initial, { service: "checkout" })).toBe(true);
-    expect(
-      shouldReconnectForFilters(
-        { service: "checkout", level: undefined },
-        { service: "checkout", level: "error" }
-      )
-    ).toBe(true);
-    expect(
-      shouldReconnectForFilters({ service: "checkout", level: "error" }, { service: "checkout", level: "error" })
-    ).toBe(false);
-    // searchRegex is client-only, so changing it must not reconnect.
-    expect(
-      shouldReconnectForFilters(
-        { service: "checkout", level: "error", searchRegex: "err" },
-        { service: "checkout", level: "error", searchRegex: "warn" }
-      )
-    ).toBe(false);
-  });
-
-  it("applies changed server filters to a freshly opened stream", () => {
     vi.stubGlobal("window", {
       setInterval: vi.fn(() => 1),
       clearInterval: vi.fn(),
@@ -639,24 +615,66 @@ describe("Filter-change reconnect", () => {
     // setCapacity emits stats, so a bound React component re-renders with the new value.
     expect(emitted[emitted.length - 1]?.bufferCapacity).toBe(5000);
 
-    const client = new LiveStreamClient();
+    client.disconnect();
+  });
+});
+
+describe("Filter-change reconnect", () => {
+  it("reconnects only when server-side filters change", () => {
+    const initial = { service: undefined, level: undefined };
+    expect(shouldReconnectForFilters(null, initial)).toBe(false); // initial mount
+    expect(shouldReconnectForFilters(initial, { service: "checkout" })).toBe(true);
+    expect(
+      shouldReconnectForFilters(
+        { service: "checkout", level: undefined },
+        { service: "checkout", level: "error" }
+      )
+    ).toBe(true);
+    expect(
+      shouldReconnectForFilters({ service: "checkout", level: "error" }, { service: "checkout", level: "error" })
+    ).toBe(false);
+    // searchRegex is client-only, so changing it must not reconnect.
+    expect(
+      shouldReconnectForFilters(
+        { service: "checkout", level: "error", searchRegex: "err" },
+        { service: "checkout", level: "error", searchRegex: "warn" }
+      )
+    ).toBe(false);
+  });
+
+  it("applies changed server filters to a freshly opened stream", () => {
+    vi.stubGlobal("window", {
+      setInterval: vi.fn(() => 1),
+      clearInterval: vi.fn(),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
+    });
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    useAppStore.setState({
+      wsUrl: "ws://localhost:9308/ws/tail",
+      apiKey: "",
+      activeCollector: "local",
+      activeEnvironment: "all",
+    });
+
+    const filterClient = new LiveStreamClient();
     let applied: Parameters<typeof shouldReconnectForFilters>[0] = null;
-    client.connect(true);
+    filterClient.connect(true);
 
     // Mirror LiveTailView's filter effect: the first application records the
     // baseline without reconnecting; a later change reopens the stream.
     const initial = { service: "checkout" };
-    client.setFilters(initial);
+    filterClient.setFilters(initial);
     applied = initial;
 
     const next = { service: "billing", level: "error" };
-    client.setFilters(next);
-    if (shouldReconnectForFilters(applied, next)) client.reconnect();
+    filterClient.setFilters(next);
+    if (shouldReconnectForFilters(applied, next)) filterClient.reconnect();
     applied = next;
 
     expect(FakeWebSocket.instances.length).toBe(2);
     expect(FakeWebSocket.instances[1].url).toContain("service=billing");
     expect(FakeWebSocket.instances[1].url).toContain("level=error");
-    client.disconnect();
+    filterClient.disconnect();
   });
 });

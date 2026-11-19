@@ -12,10 +12,6 @@ import {
   validateBaseUrl,
   isCredentialSafeTarget,
 } from "@/lib/api/client";
-  resolveCollectorPath,
-  getCollectorUrl,
-  getCortexUrl,
-} from "@/lib/api/client";
 import { isAuthenticated } from "@/lib/auth/auth.client";
 import { listDatabaseConnections, queryDatabase } from "@/lib/api/events";
 import { queryClient, scopedQueryKey } from "@/lib/query-client";

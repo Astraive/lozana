@@ -35,13 +35,6 @@ interface DashboardStoreState {
   interpolateQuery: (query: string) => string;
 }
 
-// Escape regex metacharacters so a variable name (which may come from an
-// imported dashboard) is always matched literally and can never introduce a
-// catastrophic-backtracking pattern into the generated RegExp.
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 export const useDashboardStore = create<DashboardStoreState>()(
   persist(
     (set, get) => ({

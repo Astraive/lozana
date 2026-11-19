@@ -32,7 +32,7 @@ interface JsonNodeProps {
   keyName?: string
   value: unknown
   depth: number
-  defaultExpanded: boolean
+  expanded: boolean
   /** Object/array references on the current path, used to detect cycles. */
   ancestors?: Set<object>
 }
@@ -45,12 +45,7 @@ function withAncestor(ancestors: Set<object> | undefined, value: object): Set<ob
   return next
 }
 
-function JsonNode({ keyName, value, depth, defaultExpanded, ancestors }: JsonNodeProps) {
-  const [expanded, setExpanded] = React.useState(defaultExpanded)
-  expanded: boolean
-}
-
-function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
+function JsonNode({ keyName, value, depth, expanded, ancestors }: JsonNodeProps) {
   const [isExpanded, setIsExpanded] = React.useState(expanded)
   const [prevExpanded, setPrevExpanded] = React.useState(expanded)
 
@@ -151,15 +146,12 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
 
     return (
       <div style={{ paddingLeft: depth * 16 }}>
-        <span
-          className="cursor-pointer hover:bg-primary/10 rounded px-0.5 select-none transition-colors"
-          onClick={() => setIsExpanded(!isExpanded)}
         <button
           type="button"
-          aria-expanded={expanded}
+          aria-expanded={isExpanded}
           aria-label={`Toggle ${keyName ?? "array"}`}
           className="inline-flex cursor-pointer items-center rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none transition-colors"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setIsExpanded(!isExpanded)}
         >
           <SyntaxSpan type="bracket">{isExpanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
           {keyName !== undefined && (
@@ -173,18 +165,14 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
             <span className="text-muted-foreground"> {value.length} items </span>
           )}
           {!isExpanded && <SyntaxSpan type="bracket">]</SyntaxSpan>}
-        </span>
-        {isExpanded && (
-          {!expanded && <SyntaxSpan type="bracket">]</SyntaxSpan>}
         </button>
-        {expanded && (
+        {isExpanded && (
           <>
             {value.map((item, i) => (
               <JsonNode
                 key={i}
                 value={item}
                 depth={depth + 1}
-                defaultExpanded={defaultExpanded}
                 ancestors={childAncestors}
                 expanded={expanded}
               />
@@ -215,15 +203,12 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
 
     return (
       <div style={{ paddingLeft: depth * 16 }}>
-        <span
-          className="cursor-pointer hover:bg-primary/10 rounded px-0.5 select-none transition-colors"
-          onClick={() => setIsExpanded(!isExpanded)}
         <button
           type="button"
-          aria-expanded={expanded}
+          aria-expanded={isExpanded}
           aria-label={`Toggle ${keyName ?? "object"}`}
           className="inline-flex cursor-pointer items-center rounded px-0.5 text-left hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none transition-colors"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => setIsExpanded(!isExpanded)}
         >
           <SyntaxSpan type="bracket">{isExpanded ? "\u25BC" : "\u25B6"}</SyntaxSpan>
           {keyName !== undefined && (
@@ -237,11 +222,8 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
             <span className="text-muted-foreground"> {entries.length} keys </span>
           )}
           {!isExpanded && <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>}
-        </span>
-        {isExpanded && (
-          {!expanded && <SyntaxSpan type="bracket">{"}"}</SyntaxSpan>}
         </button>
-        {expanded && (
+        {isExpanded && (
           <>
             {entries.map(([k, v]) => (
               <JsonNode
@@ -249,7 +231,6 @@ function JsonNode({ keyName, value, depth, expanded }: JsonNodeProps) {
                 keyName={k}
                 value={v}
                 depth={depth + 1}
-                defaultExpanded={defaultExpanded}
                 ancestors={childAncestors}
                 expanded={expanded}
               />
@@ -289,8 +270,7 @@ export function JsonViewer({ data, expanded = true, className }: JsonViewerProps
         <CopyButton text={jsonString} />
       </div>
       <div className="rounded-lg border border-border bg-card/50 p-4 overflow-auto font-mono text-sm leading-relaxed">
-        <JsonNode value={data} depth={0} defaultExpanded={expanded} ancestors={new Set()} />
-        <JsonNode value={data} depth={0} expanded={expanded} />
+        <JsonNode value={data} depth={0} expanded={expanded} ancestors={new Set()} />
       </div>
     </div>
   )

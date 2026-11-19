@@ -12,10 +12,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "node scripts/eslint-ts6-loader.cjs src/",
-    "test": "vitest --run"
-    "test": "vitest --run --passWithNoTests",
-    "check:env": "node scripts/check-env-vars.mjs"
     "test": "vitest --run",
+    "check:env": "node scripts/check-env-vars.mjs",
     "test:ci": "vitest --run --reporter=default --reporter=json --outputFile.json=.vitest-results.json && node scripts/check-test-count.cjs .vitest-results.json"
   },
   "dependencies": {

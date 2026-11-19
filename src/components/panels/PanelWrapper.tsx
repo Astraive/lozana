@@ -50,12 +50,11 @@ export function PanelWrapper({
   const isEditingLayout = useDashboardStore((s) => s.isEditingLayout);
 
   const finalQuery = interpolateQuery(panel.query);
-  const queryResult = useQueryEvents(finalQuery, {}, 500, isPanelQueryEnabled(panel, enabled));
   const queryResult = useQueryEvents(
     finalQuery,
     {},
     500,
-    Boolean(panel.query && panel.type !== "markdown"),
+    isPanelQueryEnabled(panel, enabled),
     undefined,
     refetchInterval,
   );

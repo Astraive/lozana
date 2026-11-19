@@ -50,6 +50,8 @@ export function composeTriggerClick(
     onClick?.(event)
     if (!event.defaultPrevented) toggle()
   }
+}
+
 function applyRef<T>(ref: React.Ref<T> | undefined, node: T | null) {
   if (typeof ref === "function") ref(node)
   else if (ref) (ref as React.MutableRefObject<T | null>).current = node
@@ -79,15 +81,7 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
           mergedRef(node)
           applyRef(child.props.ref, node)
         },
-        onClick: (e: React.MouseEvent) => {
-          setOpen(!open)
-          child.props.onClick?.(e)
-        },
-        ref: mergedRef,
-        onClick: chainEventHandlers(
-          (children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>).props.onClick,
-          () => setOpen(!open)
-        ),
+        onClick: chainEventHandlers(child.props.onClick, () => setOpen(!open)),
       }
       return React.cloneElement(child, childProps)
     }
@@ -99,7 +93,6 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background", className)}
-        onClick={composeTriggerClick(onClick, () => setOpen(!open))}
         onClick={chainEventHandlers(onClick, () => setOpen(!open))}
         {...props}
       >
@@ -214,12 +207,6 @@ function DropdownMenuItem({ className, inset, children, onClick, onKeyDown, ...p
       )}
       role="menuitem"
       tabIndex={0}
-      onClick={(e) => {
-        onClick?.(e)
-        setOpen(false)
-      }}
-      onKeyDown={(e) => {
-        onKeyDown?.(e)
       onClick={chainEventHandlers(onClick, () => setOpen(false))}
       onKeyDown={chainEventHandlers(onKeyDown, (e) => {
         if (e.key === "Enter" || e.key === " ") {

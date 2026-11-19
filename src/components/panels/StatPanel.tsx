@@ -1,5 +1,4 @@
 import { PanelWrapper } from "./PanelWrapper";
-import { finiteOr } from "@/lib/panel-math";
 import type { Panel } from "@/types/dashboard";
 import { resolveStatTargetKey, sparklineValue } from "@/lib/stat-panel-values";
 
@@ -77,7 +76,6 @@ export function StatPanel({ panel, onEdit, onDelete, onDuplicate }: StatPanelPro
               <div className="w-full h-8 mt-2 flex items-end justify-center gap-1 opacity-75">
                 {rows.slice(0, 20).map((r, i) => {
                   const rVal = sparklineValue(r, targetKey);
-                  const rVal = finiteOr(Object.values(r)[0], 1);
                   return (
                     <div
                       key={i}

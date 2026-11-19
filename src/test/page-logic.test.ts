@@ -103,7 +103,7 @@ describe("Settings connection test uses draft values (LOZ-BUG-003)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     useAppStore.setState({
-      collectorUrl: "http://saved-collector:9308",
+      collectorUrl: "http://127.0.0.1:9308",
       cortexUrl: "http://saved-cortex:9312",
     });
   });
@@ -132,6 +132,6 @@ describe("Settings connection test uses draft values (LOZ-BUG-003)", () => {
       status: 200,
     } as Response);
     await testCollectorConnection();
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://saved-collector:9308/health");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://127.0.0.1:9308/health");
   });
 });

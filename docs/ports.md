@@ -44,7 +44,7 @@ VITE_CORTEX_URL=http://localhost:9312
 LOZA_API_KEY=
 ```
 
-`VITE_*` variables are inlined into the client bundle. `LOZA_API_KEY` has no `VITE_` prefix, so it stays in the Node process and is attached to proxied collector requests as an `Authorization` header. `VITE_LOZA_API_KEY` is no longer supported; in production, inject the header at the reverse proxy instead of in the SPA.
+`VITE_*` variables are inlined into the client bundle. `LOZA_API_KEY` has no `VITE_` prefix, so it stays in the Node process and is attached to proxied collector requests as an `Authorization` header. A client-exposed API key variable is no longer supported; in production, inject the header at the reverse proxy instead of in the SPA.
 
 ### Docker
 

@@ -42,20 +42,6 @@ export interface AppState {
   resetConnectionDefaults: () => void;
 }
 
-const DEFAULT_COLLECTOR_URL =
-  readStoredValue("loza-collector-url") ||
-  (import.meta.env.VITE_LOZANA_API_URL as string) ||
-  "http://localhost:9308";
-
-const DEFAULT_CORTEX_URL =
-  readStoredValue("loza-cortex-url") ||
-  (import.meta.env.VITE_CORTEX_URL as string) ||
-  "http://localhost:9312";
-
-const DEFAULT_WS_URL =
-  readStoredValue("loza-ws-url") ||
-  (import.meta.env.VITE_WS_URL as string) ||
-  "ws://localhost:9308/ws/tail";
 /** Persisted state is writable by page scripts, so never trust it as-is. */
 function safeEndpoint(
   candidate: unknown,
@@ -99,12 +85,8 @@ const DEFAULT_WS_URL = safeEndpoint(
   "ws://localhost:9308/ws/tail",
   "websocket"
 );
-      (import.meta.env.VITE_LOZANA_WS_URL as string) ||
-      "ws://localhost:9308/ws/tail"
-    : "ws://localhost:9308/ws/tail";
 
-// Pure read: initializing the store must never delete a stored key.
-const DEFAULT_API_KEY = readStoredValue("loza-api-key", "session") ?? "";
+// Migrate legacy keys out of localStorage without wiping the session credential.
 const DEFAULT_API_KEY = (() => {
   if (typeof window === "undefined") return "";
   const sessionKey = sessionStorage.getItem("loza-api-key") || "";
@@ -203,9 +185,6 @@ export const useAppStore = create<AppState>()(
         const cleanUrl = url.trim();
         writeStoredValue("loza-ws-url", cleanUrl);
         validateEndpointUrl(cleanUrl, { purpose: "websocket", requireTls: Boolean(get().apiKey) });
-        if (typeof window !== "undefined") {
-          localStorage.setItem("loza-ws-url", cleanUrl);
-        }
         set({ wsUrl: cleanUrl });
       },
       setApiKey: (key) => {
