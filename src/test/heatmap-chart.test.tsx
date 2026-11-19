@@ -16,5 +16,34 @@ describe("HeatmapChart composite cell key", () => {
 
     expect(html).toContain('title="a:b, c: 5"');
     expect(html).toContain('title="a, b:c: 9"');
+import { computeValueRange, HeatmapChart } from "@/components/charts/HeatmapChart";
+
+describe("HeatmapChart value range", () => {
+  it("computes the correct min and max from the data", () => {
+    expect(computeValueRange([
+      { x: "a", y: "b", value: 4 },
+      { x: "a", y: "c", value: -2 },
+      { x: "b", y: "b", value: 9 },
+    ])).toEqual({ min: -2, max: 9 });
+  });
+
+  it("returns a finite, degenerate range for empty data", () => {
+    expect(computeValueRange([])).toEqual({ min: 0, max: 0 });
+  });
+
+  it("renders large datasets without overflowing the call stack", () => {
+    const data = Array.from({ length: 200_000 }, (_, i) => ({
+      x: "x",
+      y: "y",
+      value: i,
+    }));
+
+    expect(() => renderToStaticMarkup(<HeatmapChart data={data} />)).not.toThrow();
+    expect(computeValueRange(data)).toEqual({ min: 0, max: 199_999 });
+  });
+
+  it("renders empty data without emitting Infinity colors", () => {
+    const html = renderToStaticMarkup(<HeatmapChart data={[]} />);
+    expect(html).not.toContain("Infinity");
   });
 });

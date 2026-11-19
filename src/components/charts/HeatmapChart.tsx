@@ -19,6 +19,25 @@ interface HeatmapChartProps {
   cellSize?: number
 }
 
+/**
+ * Compute the value range with an iterative reduction instead of spreading the
+ * values into Math.min/Math.max. Spreading passes every element as a function
+ * argument and throws RangeError for large datasets. Empty data yields a
+ * finite, degenerate range so callers never see Infinity/-Infinity.
+ */
+export function computeValueRange(data: readonly HeatmapDataPoint[]): { min: number; max: number } {
+  if (data.length === 0) return { min: 0, max: 0 }
+
+  let min = data[0].value
+  let max = data[0].value
+  for (let i = 1; i < data.length; i++) {
+    const value = data[i].value
+    min = Math.min(min, value)
+    max = Math.max(max, value)
+  }
+  return { min, max }
+}
+
 function interpolateColor(minColor: string, maxColor: string, ratio: number): string {
   const parseHex = (hex: string) => {
     const h = hex.replace("#", "")
@@ -47,13 +66,7 @@ export function HeatmapChart({
   const xLabels = React.useMemo(() => [...new Set(data.map((d) => d.x))], [data])
   const yLabels = React.useMemo(() => [...new Set(data.map((d) => d.y))], [data])
 
-  const valueRange = React.useMemo(() => {
-    const values = data.map((d) => d.value)
-    return {
-      min: Math.min(...values),
-      max: Math.max(...values),
-    }
-  }, [data])
+  const valueRange = React.useMemo(() => computeValueRange(data), [data])
 
   const dataMap = React.useMemo(() => {
     const map = new Map<string, number>()
