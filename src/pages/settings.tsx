@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [cortexUrl, setCortexUrl] = useSynchronizedDraft(store.cortexUrl);
   const [wsUrl, setWsUrl] = useSynchronizedDraft(store.wsUrl);
   const [apiKey, setApiKey] = useSynchronizedDraft(store.apiKey);
+  const [cortexApiKey, setCortexApiKey] = useSynchronizedDraft(store.cortexApiKey);
   const [activeCollector, setActiveCollector] = useSynchronizedDraft(store.activeCollector);
   const [activeEnvironment, setActiveEnvironment] = useSynchronizedDraft(store.activeEnvironment);
   const [autoRefreshInterval, setAutoRefreshInterval] = useSynchronizedDraft(store.autoRefreshInterval);
@@ -180,6 +181,7 @@ export default function SettingsPage() {
       return;
     }
     store.setApiKey(apiKey);
+    store.setCortexApiKey(cortexApiKey);
     store.setActiveCollector(activeCollector);
     store.setActiveEnvironment(activeEnvironment);
     store.setAutoRefreshInterval(autoRefreshInterval);
@@ -192,6 +194,7 @@ export default function SettingsPage() {
     setCortexUrl("http://localhost:9312");
     setWsUrl("ws://localhost:9308/ws/tail");
     setApiKey("");
+    setCortexApiKey("");
     setActiveCollector("");
     setActiveEnvironment("all");
     setAutoRefreshInterval(0);
@@ -411,7 +414,7 @@ export default function SettingsPage() {
             Environment Tenancy & Authentication
           </CardTitle>
           <CardDescription className="text-xs">
-            Header injection for multi-tenant isolation (X-Loza-Env & Authorization)
+            Collector tenancy headers (X-Loza-Env & Authorization) and a separate Cortex credential
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -452,6 +455,23 @@ export default function SettingsPage() {
                 Stored only for this browser session; never written to durable browser storage.
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2 border-t border-border pt-4">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <BrainCircuit className="h-3.5 w-3.5" />
+              Cortex API Token (separate trust domain)
+            </label>
+            <Input
+              type="password"
+              value={cortexApiKey}
+              onChange={(e) => setCortexApiKey(e.target.value)}
+              placeholder="Optional — distinct from the collector key"
+              className="font-mono text-sm"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Used only for Cortex requests. The collector key above is never forwarded to Cortex.
+            </p>
           </div>
         </CardContent>
       </Card>

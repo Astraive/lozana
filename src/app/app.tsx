@@ -1,10 +1,14 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Providers } from "./providers";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isAuthenticated } from "@/lib/auth/auth.client";
+import { useAppStore } from "@/stores/app.store";
 
 const OverviewPage = lazy(() => import("@/pages/overview"));
 const ExplorePage = lazy(() => import("@/pages/explore"));
@@ -33,6 +37,22 @@ function PageLoader() {
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+/**
+ * Client-side route gating (defense in depth). The backend is authoritative
+ * for validating the API key; this guard only redirects users who have not
+ * configured a collector credential. Settings stays public so a credential
+ * can be entered there. Cortex is a separate trust domain with its own key.
+ */
+function RequireAuth() {
+  // Subscribe to the credential so the guard re-evaluates when it changes.
+  const apiKey = useAppStore((state) => state.apiKey);
+  const location = useLocation();
+
+  if (!apiKey || !isAuthenticated()) {
+    return <Navigate to="/settings" replace state={{ from: location.pathname }} />;
+  }
+
+  return <Outlet />;
 }
 
 export default function App() {
@@ -43,17 +63,20 @@ export default function App() {
           <RoutedErrorBoundary>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<OverviewPage />} />
-                <Route path="/explore" element={<ExplorePage />} />
-                <Route path="/traces" element={<TracesPage />} />
-                <Route path="/errors" element={<ErrorsPage />} />
-                <Route path="/services" element={<ServicesPage />} />
-                <Route path="/dashboards" element={<DashboardsPage />} />
-                <Route path="/queries" element={<QueriesPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-                <Route path="/collector" element={<CollectorPage />} />
-                <Route path="/incidents" element={<IncidentsPage />} />
+                {/* Public: credential configuration entry point. */}
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route element={<RequireAuth />}>
+                  <Route path="/" element={<OverviewPage />} />
+                  <Route path="/explore" element={<ExplorePage />} />
+                  <Route path="/traces" element={<TracesPage />} />
+                  <Route path="/errors" element={<ErrorsPage />} />
+                  <Route path="/services" element={<ServicesPage />} />
+                  <Route path="/dashboards" element={<DashboardsPage />} />
+                  <Route path="/queries" element={<QueriesPage />} />
+                  <Route path="/alerts" element={<AlertsPage />} />
+                  <Route path="/collector" element={<CollectorPage />} />
+                  <Route path="/incidents" element={<IncidentsPage />} />
+                </Route>
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>

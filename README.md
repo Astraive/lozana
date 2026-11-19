@@ -79,6 +79,23 @@ validated HTTP(S) endpoints - never in WebSocket subprotocols.
 See `.env.example` for reference.
 
 > Migration: `VITE_LOZA_API_KEY` has been removed. Set `LOZA_API_KEY` for local development instead. In production, do not embed a key in the SPA — configure your reverse proxy or backend to add the `Authorization` header server-side.
+## Authentication model
+
+Lozana uses API-key authentication. The **collector API token** is entered on the
+`/settings` page and kept only for the current browser session (sessionStorage).
+It is attached as `Authorization: Bearer <token>` to collector requests, along
+with the `X-Loza-Env` / `X-Loza-Collector` tenancy headers. The backend remains
+the authority that validates the key; client-side route gating is defense in
+depth only.
+
+Every app route except `/settings` requires a configured collector token and
+redirects to `/settings` when one is missing. `/settings` stays public so a
+token can be entered there.
+
+Cortex is a **separate trust domain** with its own optional API token, also
+configured on `/settings`. The collector token and collector tenancy headers are
+never forwarded to Cortex: Cortex requests carry only their own credential (if
+set), `Content-Type`, and `X-Request-Id`.
 
 ## Routes
 

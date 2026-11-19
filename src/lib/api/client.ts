@@ -242,6 +242,19 @@ export function getCortexApiKey(): string {
     (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("loza-cortex-api-key") : null) ||
     (import.meta.env.VITE_CORTEX_API_KEY as string | undefined) ||
     ""
+ * Cortex is a separate trust domain with its own credential. This key is
+ * deliberately distinct from the collector key so collector secrets are never
+ * forwarded to Cortex.
+ */
+export function getCortexApiKey(): string {
+  try {
+    const storeKey = useAppStore.getState().cortexApiKey;
+    if (storeKey) return storeKey;
+  } catch {
+    // fallback
+  }
+  return (
+    (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("loza-cortex-api-key") : null) || ""
   );
 }
 
@@ -274,6 +287,7 @@ export function resolveCollectorPath(path: string): string {
 }
 
 /** Headers shared by every JSON request. No credential is attached here. */
+/** Headers shared by every JSON request (no credentials attached here). */
 function buildBaseHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
@@ -282,6 +296,13 @@ function buildBaseHeaders(init?: RequestInit): Headers {
   headers.set("X-Request-Id", generateRequestId());
   return headers;
 }
+
+/**
+ * Collector-scoped headers. Only this builder attaches the collector API key
+ * and the collector tenancy headers.
+ */
+function buildCollectorHeaders(init?: RequestInit): Headers {
+  const headers = buildBaseHeaders(init);
 
 function attachBearer(headers: Headers, token: string, baseUrl: string): void {
   if (!token || !isCredentialSafeTarget(baseUrl)) return;
@@ -326,6 +347,17 @@ function buildCortexHeaders(baseUrl: string, init?: RequestInit): Headers {
   // A credential meant for the collector must never travel to Cortex.
   headers.delete("Authorization");
   attachBearer(headers, getCortexApiKey(), baseUrl);
+ * and collector tenancy headers MUST NOT be forwarded to it. If Cortex needs
+ * auth, it uses its own separate credential.
+ */
+function buildCortexHeaders(init?: RequestInit): Headers {
+  const headers = buildBaseHeaders(init);
+
+  const key = getCortexApiKey();
+  if (key) {
+    headers.set("Authorization", `Bearer ${key}`);
+  }
+
   return headers;
 }
 
@@ -347,6 +379,7 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
     const res = await fetch(`${baseUrl}${resolvedPath}`, {
       ...init,
       headers: buildCollectorHeaders(baseUrl, init),
+      headers: buildCollectorHeaders(init),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -397,6 +430,7 @@ export async function fetchCortexJSON<T>(path: string, init?: RequestInit): Prom
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: buildCortexHeaders(baseUrl, init),
+      headers: buildCortexHeaders(init),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -430,6 +464,7 @@ export async function testCollectorConnection(urlOverride?: string): Promise<{
     const res = await fetch(`${baseUrl}/health`, {
       method: "GET",
       headers: buildCollectorHeaders(baseUrl),
+      headers: buildCollectorHeaders(),
       signal: AbortSignal.timeout(5000),
     });
     const latencyMs = Math.round(performance.now() - start);
@@ -464,6 +499,7 @@ export async function testCortexConnection(urlOverride?: string): Promise<{
     const res = await fetch(`${baseUrl}/healthz`, {
       method: "GET",
       headers: buildCortexHeaders(baseUrl),
+      headers: buildCortexHeaders(),
       signal: AbortSignal.timeout(5000),
     });
     const latencyMs = Math.round(performance.now() - start);
