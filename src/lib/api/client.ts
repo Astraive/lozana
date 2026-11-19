@@ -190,6 +190,8 @@ export function getWebSocketUrl(): string {
   return (
     readStoredValue("loza-ws-url") ||
     (import.meta.env.VITE_WS_URL as string) ||
+    (typeof localStorage !== "undefined" ? localStorage.getItem("loza-ws-url") : null) ||
+    (import.meta.env.VITE_LOZANA_WS_URL as string) ||
     "ws://localhost:9308/ws/tail"
   return resolveEndpoint(
     [

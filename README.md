@@ -45,13 +45,6 @@ bun run build
 
 Output is in `dist/`.
 
-## Docker
-
-```bash
-docker build -t lozana .
-docker run -p 80:80 lozana
-```
-
 ## Configuration
 
 Client variables (prefix `VITE_`). These are embedded in the browser bundle at build time, so never put secrets in them:
@@ -75,8 +68,45 @@ The plaintext defaults are for localhost-only development. Non-loopback
 endpoints must use `https://` / `wss://` and be either same-origin or listed in
 `VITE_LOZANA_ALLOWED_ORIGINS`. Credentials are sent only as bearer headers over
 validated HTTP(S) endpoints - never in WebSocket subprotocols.
+### Build-time variables
 
-See `.env.example` for reference.
+Vite inlines `VITE_` variables into the bundle when the app is built. They cannot be changed
+afterwards, and because the bundle is public they must never contain credentials.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_LOZANA_API_URL` | Collector HTTP API URL | `http://localhost:9308` |
+| `VITE_LOZANA_WS_URL` | Collector WebSocket URL | `ws://localhost:9308` |
+| `VITE_CORTEX_URL` | Cortex HTTP API URL | `http://localhost:9312` |
+
+Copy `.env.example` to `.env` for local development, or set the variables in the build
+environment. See `.env.example` for reference.
+
+> [!WARNING]
+> Never put an API key, token, password, or any other secret in a `VITE_` variable: it would be
+> published in the public JavaScript bundle. The collector API key is entered in the Settings
+> page at runtime and held only in `sessionStorage`; it is never read from the environment.
+
+### Docker
+
+Pass the build arguments so the values are compiled into the image:
+
+```bash
+docker build -t lozana \
+  --build-arg VITE_LOZANA_API_URL=http://collector:9308 \
+  --build-arg VITE_LOZANA_WS_URL=ws://collector:9308 \
+  --build-arg VITE_CORTEX_URL=http://cortex:9312 \
+  .
+docker run -p 8080:8080 lozana
+```
+
+`docker run -e VITE_...` and `--env-file` have no effect on an already-built image: the values
+are fixed at build time. To reconfigure a running container without rebuilding, open
+`http://localhost:8080/settings` and set the endpoints there — those overrides are persisted in
+the browser (`localStorage` for URLs, `sessionStorage` for the API key) and take precedence over
+the baked-in defaults.
+
+Run `bun run check:env` to verify that the documented variables match the ones used by the code.
 
 > Migration: `VITE_LOZA_API_KEY` has been removed. Set `LOZA_API_KEY` for local development instead. In production, do not embed a key in the SPA — configure your reverse proxy or backend to add the `Authorization` header server-side.
 ## Authentication model

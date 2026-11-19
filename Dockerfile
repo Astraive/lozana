@@ -4,6 +4,15 @@
 FROM oven/bun:alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS build
 WORKDIR /app
 
+# VITE_* values are inlined into the bundle at build time. Pass them with
+# `docker build --build-arg VITE_...=...`; they cannot be set at `docker run`.
+ARG VITE_LOZANA_API_URL=http://localhost:9308
+ARG VITE_LOZANA_WS_URL=ws://localhost:9308
+ARG VITE_CORTEX_URL=http://localhost:9312
+ENV VITE_LOZANA_API_URL=$VITE_LOZANA_API_URL
+ENV VITE_LOZANA_WS_URL=$VITE_LOZANA_WS_URL
+ENV VITE_CORTEX_URL=$VITE_CORTEX_URL
+
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 

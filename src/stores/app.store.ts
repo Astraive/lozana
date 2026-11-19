@@ -99,6 +99,9 @@ const DEFAULT_WS_URL = safeEndpoint(
   "ws://localhost:9308/ws/tail",
   "websocket"
 );
+      (import.meta.env.VITE_LOZANA_WS_URL as string) ||
+      "ws://localhost:9308/ws/tail"
+    : "ws://localhost:9308/ws/tail";
 
 // Pure read: initializing the store must never delete a stored key.
 const DEFAULT_API_KEY = readStoredValue("loza-api-key", "session") ?? "";
