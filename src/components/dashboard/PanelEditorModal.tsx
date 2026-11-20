@@ -86,6 +86,7 @@ function PanelEditorForm({ panel, open, onOpenChange, onSave }: PanelEditorModal
     content,
     position: { x: 0, y: 0, w: 12, h: 6 },
     visualization: {
+      ...panel?.visualization,
       unit: unit === "none" ? undefined : (unit as NonNullable<Panel["visualization"]>["unit"]),
       color,
       chartType,
