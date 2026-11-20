@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   LiveStreamClient,
+  matchesStreamLevel,
   shouldReconnectForFilters,
   type StreamFilterOptions,
   type StreamStats,
@@ -125,7 +126,7 @@ export function LiveTailView() {
   const displayEvents = useMemo(() => {
     return events.filter((evt) => {
       if (serviceFilter && evt.service !== serviceFilter) return false;
-      if (levelFilter && evt.level !== levelFilter) return false;
+      if (!matchesStreamLevel(levelFilter, evt.level)) return false;
       if (displayRegex && !testRegexSafely(displayRegex, JSON.stringify(evt))) return false;
       return true;
     });
@@ -268,7 +269,7 @@ export function LiveTailView() {
             className="h-7 rounded bg-background border border-input px-2 text-xs font-mono"
           >
             <option value="">All Levels</option>
-            <option value="error">Error & Fatal</option>
+            <option value="error-fatal">Error & Fatal</option>
             <option value="warn">Warn</option>
             <option value="info">Info</option>
             <option value="debug">Debug</option>
