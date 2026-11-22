@@ -17,6 +17,7 @@ export function LogStreamPanel({ panel, onEdit, onDelete, onDuplicate }: LogStre
   const [paused, setPaused] = useState(false);
   const [frozenRows, setFrozenRows] = useState<Record<string, unknown>[] | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const followBottomRef = useRef(true);
 
   const togglePause = (liveRows: Record<string, unknown>[]) => {
     if (paused) {
@@ -70,7 +71,20 @@ export function LogStreamPanel({ panel, onEdit, onDelete, onDuplicate }: LogStre
               </div>
             </div>
 
-            <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-1 font-mono text-[11px] p-1 bg-black/30 rounded border border-border/40">
+            <div
+              ref={(element) => {
+                scrollRef.current = element;
+                if (element && !paused && followBottomRef.current) {
+                  element.scrollTop = element.scrollHeight;
+                }
+              }}
+              onScroll={(event) => {
+                const element = event.currentTarget;
+                followBottomRef.current =
+                  element.scrollHeight - element.scrollTop - element.clientHeight <= 24;
+              }}
+              className="flex-1 overflow-y-auto space-y-1 font-mono text-[11px] p-1 bg-black/30 rounded border border-border/40"
+            >
               {rows.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground/60">
                   Waiting for live events...
