@@ -47,6 +47,7 @@ export default function DashboardsPage() {
     duplicateDashboard,
     resetToPresets,
     addPanelToActiveDashboard,
+    updatePanelInActiveDashboard,
     isEditingLayout,
     setIsEditingLayout,
     getActiveDashboard,
@@ -334,7 +335,10 @@ export default function DashboardsPage() {
         panel={editingPanel}
         open={newPanelOpen}
         onOpenChange={setNewPanelOpen}
-        onSave={() => setNewPanelOpen(false)}
+        onSave={(updated) => {
+          updatePanelInActiveDashboard(updated.id, updated);
+          setNewPanelOpen(false);
+        }}
       />
     </div>
   );
