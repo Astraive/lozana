@@ -53,6 +53,7 @@ export function TimeSeriesPanel({ panel, onEdit, onDelete, onDuplicate }: TimeSe
               xField="timestamp"
               yField="value"
               color={panel.visualization?.color}
+              chartType={panel.visualization?.chartType === "area" ? "area" : "line"}
             />
           </div>
         );

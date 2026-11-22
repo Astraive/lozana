@@ -1,6 +1,13 @@
 import type { ReactElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
-import { CartesianGrid, Tooltip } from "recharts";
+import {
+  CartesianGrid,
+  Tooltip,
+  Area,
+  AreaChart as RechartsAreaChart,
+  Line,
+  LineChart as RechartsLineChart,
+} from "recharts";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
 import { LozaLineChart } from "@/components/charts/loza-line-chart";
 
@@ -29,6 +36,26 @@ const baseProps = {
   xField: "timestamp",
   yField: "value",
 };
+describe("TimeSeriesChart visualization", () => {
+  it("renders an area when selected and keeps line as the default", () => {
+    const line = TimeSeriesChart(baseProps) as Element;
+    expect(findByType(line, RechartsLineChart)).toHaveLength(1);
+    expect(findByType(line, Line)).toHaveLength(1);
+    expect(findByType(line, RechartsAreaChart)).toHaveLength(0);
+    expect(findByType(line, Area)).toHaveLength(0);
+
+    const area = TimeSeriesChart({ ...baseProps, chartType: "area", color: "#10b981" }) as Element;
+    expect(findByType(area, RechartsAreaChart)).toHaveLength(1);
+    expect(findByType(area, Area)[0].props).toMatchObject({
+      dataKey: "value",
+      stroke: "#10b981",
+      fill: "#10b981",
+    });
+    expect(findByType(area, RechartsLineChart)).toHaveLength(0);
+    expect(findByType(area, Line)).toHaveLength(0);
+  });
+});
+
 
 describe("line chart consolidation", () => {
   it("LozaLineChart delegates to the shared TimeSeriesChart implementation", () => {

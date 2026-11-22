@@ -6,7 +6,7 @@ export const DEFAULT_NEW_PANEL: Omit<Panel, "id"> = {
   type: "timeseries",
   query: "from events | summarize event_count = count() by bin(timestamp, 5m) | sort bin asc",
   position: { x: 0, y: 100, w: 6, h: 4 },
-  visualization: { chartType: "area", color: "#3b82f6" },
+  visualization: { chartType: "line", color: "#3b82f6" },
 };
 
 /**
