@@ -327,7 +327,7 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
       }
       throw new ApiError(`HTTP ${res.status}: ${typeof parsedBody === "object" && parsedBody !== null && "error" in (parsedBody as Record<string, unknown>) ? String((parsedBody as Record<string, unknown>).error) : body}`, res.status, body);
     }
-    return res.json() as Promise<T>;
+    return await res.json() as T;
   } finally {
     globalThis.clearTimeout(timeout);
     signal?.removeEventListener("abort", abortRequest);
@@ -371,7 +371,7 @@ export async function fetchCortexJSON<T>(path: string, init?: RequestInit): Prom
       const body = await res.text();
       throw new ApiError(`HTTP ${res.status}: ${body}`, res.status, body);
     }
-    return res.json() as Promise<T>;
+    return await res.json() as T;
   } finally {
     globalThis.clearTimeout(timeout);
     signal?.removeEventListener("abort", abortRequest);
