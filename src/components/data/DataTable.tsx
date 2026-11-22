@@ -40,16 +40,21 @@ export function DataTable<TData extends RowData>({
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize })
-  React.useEffect(() => {
-    setPagination((prev) => (prev.pageSize === pageSize ? prev : { ...prev, pageSize }))
-  }, [pageSize])
+  const effectivePagination =
+    pagination.pageSize === pageSize ? pagination : { pageIndex: 0, pageSize }
   const table = useTable({
     features: dataTableFeatures,
     data,
     columns,
-    state: { sorting, pagination },
+    state: { sorting, pagination: effectivePagination },
     onSortingChange: setSorting,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+      setPagination((previous) => {
+        const current =
+          previous.pageSize === pageSize ? previous : { pageIndex: 0, pageSize }
+        return typeof updater === "function" ? updater(current) : updater
+      })
+    },
   })
 
   return (
