@@ -20,9 +20,9 @@ const columns: DataTableColumnDef<Row>[] = [
 let container: HTMLDivElement;
 let root: Root;
 
-function renderPageSize(pageSize: number) {
+function renderPageSize(pageSize: number, rows = data) {
   act(() => {
-    root.render(<DataTable data={data} columns={columns} pageSize={pageSize} />);
+    root.render(<DataTable data={rows} columns={columns} pageSize={pageSize} />);
   });
 }
 
@@ -84,6 +84,17 @@ describe("DataTable pageSize", () => {
 
     renderPageSize(4);
     expect(bodyRowCount()).toBe(4);
+    expect(container.textContent).toContain("Page 1 of 2");
+  });
+
+  it("resets to the first page when data shrinks and the current page is out of range", () => {
+    renderPageSize(2);
+    clickNext();
+    clickNext();
+    expect(container.textContent).toContain("Page 3 of 3");
+
+    renderPageSize(2, data.slice(0, 4));
+    expect(bodyRowCount()).toBe(2);
     expect(container.textContent).toContain("Page 1 of 2");
   });
 });
