@@ -1,3 +1,4 @@
+import { firstFiniteValue } from "@/lib/panel-math";
 import { PanelWrapper } from "./PanelWrapper";
 import { BarChart } from "@/components/charts/BarChart";
 import type { Panel } from "@/types/dashboard";
@@ -30,21 +31,25 @@ export function BarPanel({ panel, onEdit, onDelete, onDuplicate }: BarPanelProps
           );
         }
 
-        const chartData = rows.slice(0, 15).map((r) => {
+        const chartData = rows.slice(0, 15).flatMap((r) => {
           const keys = Object.keys(r);
           const nameKey =
             keys.find((k) => k === "service" || k === "route" || k === "level" || k === "status_code" || k === "error_type") ||
             keys[0];
           const valKey =
             keys.find((k) => k !== nameKey && (k.includes("count") || k.includes("duration") || k.includes("p95") || k.includes("avg"))) ||
-            keys[1] ||
-            keys[0];
-
-          return {
-            name: String(r[nameKey] ?? "Item"),
-            value: Number(r[valKey] ?? 0),
-          };
+            keys.find((k) => k !== nameKey);
+          const value = valKey ? firstFiniteValue(r, [valKey]) : undefined;
+          return value === undefined ? [] : [{ name: String(r[nameKey] ?? "Item"), value }];
         });
+
+        if (chartData.length === 0) {
+          return (
+            <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+              No numeric data for bar chart.
+            </div>
+          );
+        }
 
         return (
           <div className="flex-1 min-h-[160px] w-full">
