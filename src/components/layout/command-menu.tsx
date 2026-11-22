@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useCallback } from "react"
+import { useCommandMenu } from "@/components/layout/command-menu-context"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/cn"
 import { isCommandPaletteShortcut } from "@/lib/ui-utils"
@@ -50,21 +51,26 @@ const COMMANDS: Command[] = [
 
 export function CommandMenu() {
   const [state, dispatch] = useReducer(menuReducer, undefined, createInitialMenuState)
-  const { open, filter, activeIndex } = state
+  const { open, setOpen, toggleMenu } = useCommandMenu()
+  const { filter, activeIndex } = state
   const navigate = useNavigate()
   const listRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   useEffect(() => {
+    dispatch({ type: "setOpen", open })
+  }, [open])
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (isCommandPaletteShortcut(e)) {
         e.preventDefault()
-        dispatch({ type: "toggle" })
+        toggleMenu()
       }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [])
+  }, [toggleMenu])
 
 
   // Filter commands
@@ -84,9 +90,10 @@ export function CommandMenu() {
   const executeCommand = useCallback(
     (cmd: Command) => {
       navigate(cmd.href)
+      setOpen(false)
       dispatch({ type: "close" })
     },
-    [navigate]
+    [navigate, setOpen]
   )
 
   const handleKeyDown = useCallback(
@@ -107,13 +114,13 @@ export function CommandMenu() {
           }
           break
         case "Escape":
+          setOpen(false)
           dispatch({ type: "close" })
           break
       }
     },
-    [filtered, activeIndex, executeCommand]
+    [filtered, activeIndex, executeCommand, setOpen]
   )
-
   // Group filtered commands by category
   const grouped = filtered.reduce<Record<string, Command[]>>((acc, cmd) => {
     if (!acc[cmd.category]) acc[cmd.category] = []
@@ -125,6 +132,7 @@ export function CommandMenu() {
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
         dispatch({ type: "setOpen", open: nextOpen })
       }}
     >
