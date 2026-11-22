@@ -13,17 +13,30 @@ export function chainEventHandlers<E>(
   }
 }
 
-/** Lock scrolling on an element, restoring its previous overflow on release. */
+/** Active lock count and the original overflow value for each locked element. */
+const scrollLocks = new WeakMap<object, { count: number; overflow: string }>()
+
+/** Keep an element locked until its final independent release. */
 export function createScrollLock(
   element: { style: { overflow: string } } = document.body
 ): () => void {
-  const previousOverflow = element.style.overflow
-  element.style.overflow = "hidden"
+  const lock = scrollLocks.get(element) ?? { count: 0, overflow: element.style.overflow }
+  if (lock.count === 0) {
+    lock.overflow = element.style.overflow
+    element.style.overflow = "hidden"
+  }
+  lock.count += 1
+  scrollLocks.set(element, lock)
+
   let released = false
   return () => {
     if (released) return
     released = true
-    element.style.overflow = previousOverflow
+    lock.count -= 1
+    if (lock.count === 0) {
+      element.style.overflow = lock.overflow
+      scrollLocks.delete(element)
+    }
   }
 }
 

@@ -47,6 +47,17 @@ describe("scroll-lock composition", () => {
     releaseOuter();
     expect(element.style.overflow).toBe("");
   });
+  it("keeps an overlapping lock active until both tokens release", () => {
+    const element = { style: { overflow: "scroll" } }
+    const releaseA = createScrollLock(element)
+    const releaseB = createScrollLock(element)
+
+    releaseA()
+    expect(element.style.overflow).toBe("hidden")
+    releaseB()
+    expect(element.style.overflow).toBe("scroll")
+  })
+
 
   it("ignores repeated releases", () => {
     const element = { style: { overflow: "auto" } };
