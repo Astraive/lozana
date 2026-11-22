@@ -12,15 +12,36 @@ import { RequestGuard } from "@/lib/incident-request-guard";
 import type { CortexReconstruction, IncidentGraph } from "@/types/cortex";
 
 export default function IncidentsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const urlIncidentId = searchParams.get("incident_id")?.trim() ?? "";
+  const [mode, setMode] = useState<"fast" | "deep">("fast");
+
+  return (
+    <IncidentWorkbenchPage
+      key={urlIncidentId}
+      urlIncidentId={urlIncidentId}
+      mode={mode}
+      onModeChange={setMode}
+    />
+  );
+}
+
+function IncidentWorkbenchPage({
+  urlIncidentId,
+  mode,
+  onModeChange,
+}: {
+  urlIncidentId: string;
+  mode: "fast" | "deep";
+  onModeChange: (mode: "fast" | "deep") => void;
+}) {
+  const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [incidentIdInput, setIncidentIdInput] = useState(urlIncidentId);
   const [reconstruction, setReconstruction] = useState<CortexReconstruction | null>(null);
   const [graph, setGraph] = useState<IncidentGraph | null>(null);
   const [loading, setLoading] = useState(Boolean(urlIncidentId));
   const [error, setError] = useState(false);
-  const [mode, setMode] = useState<"fast" | "deep">("fast");
   const modeRef = useRef(mode);
   const requestGuardRef = useRef(new RequestGuard());
   // Incremented for every request (and on navigation) so late responses from a
@@ -58,17 +79,6 @@ export default function IncidentsPage() {
       });
   }, []);
 
-  // Reset state in an effect instead of during render when navigation changes
-  // the incident id. Invalidate any in-flight request so its result is ignored.
-  useEffect(() => {
-    requestIdRef.current += 1;
-    setIncidentIdInput(urlIncidentId);
-    setReconstruction(null);
-    setGraph(null);
-    setLoading(Boolean(urlIncidentId));
-    setError(false);
-  }, [urlIncidentId]);
-
   const startReconstruction = (
     targetId: string,
     targetMode: "fast" | "deep" = mode,
@@ -87,14 +97,14 @@ export default function IncidentsPage() {
       void loadIncident(urlIncidentId, modeRef.current);
     }
     return () => {
-      // A request still in flight when this effect re-runs (URL change) or the
-      // page unmounts must no longer be allowed to write stale state.
+      // A request still in flight when this keyed page unmounts must not write
+      // stale state.
       guard.invalidate();
     };
   }, [loadIncident, urlIncidentId]);
 
   const handleModeChange = (nextMode: "fast" | "deep") => {
-    setMode(nextMode);
+    onModeChange(nextMode);
     modeRef.current = nextMode;
     setIncidentIdInput(urlIncidentId);
     if (urlIncidentId) startReconstruction(urlIncidentId, nextMode);

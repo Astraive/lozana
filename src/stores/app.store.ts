@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { clearStoredValue, readStoredValue, writeStoredValue } from "@/lib/storage";
+import { clearStoredValue, writeStoredValue } from "@/lib/storage";
 import { validateEndpointUrl, type EndpointPurpose } from "@/lib/api/endpoint-policy";
 import { removeScopeQueries } from "@/lib/query-client";
 

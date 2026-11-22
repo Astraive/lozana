@@ -658,7 +658,7 @@ describe("Filter-change reconnect", () => {
     });
 
     const filterClient = new LiveStreamClient();
-    let applied: Parameters<typeof shouldReconnectForFilters>[0] = null;
+    let applied: Parameters<typeof shouldReconnectForFilters>[0];
     filterClient.connect(true);
 
     // Mirror LiveTailView's filter effect: the first application records the
@@ -670,7 +670,6 @@ describe("Filter-change reconnect", () => {
     const next = { service: "billing", level: "error" };
     filterClient.setFilters(next);
     if (shouldReconnectForFilters(applied, next)) filterClient.reconnect();
-    applied = next;
 
     expect(FakeWebSocket.instances.length).toBe(2);
     expect(FakeWebSocket.instances[1].url).toContain("service=billing");
