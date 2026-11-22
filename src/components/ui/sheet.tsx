@@ -1,7 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/cn"
-import { createScrollLock } from "@/lib/ui-utils"
+import { chainEventHandlers, createScrollLock } from "@/lib/ui-utils"
 
 interface SheetContextValue {
   open: boolean
@@ -56,6 +56,16 @@ export function composeSheetClickHandler(
     onClick?.(event)
   }
 }
+function chainSheetChildClick(
+  childOnClick: React.MouseEventHandler<HTMLButtonElement> | undefined,
+  triggerOnClick: React.MouseEventHandler<HTMLButtonElement>,
+): React.MouseEventHandler<HTMLButtonElement> {
+  return (event) => {
+    childOnClick?.(event)
+    triggerOnClick(event)
+  }
+}
+
 
 interface SheetTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean
@@ -63,18 +73,21 @@ interface SheetTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 
 function SheetTrigger({ children, asChild, onClick, ...props }: SheetTriggerProps) {
   const { setOpen } = React.useContext(SheetContext)
+  const handleClick = composeSheetClickHandler(() => setOpen(true), onClick)
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>, {
-      onClick: (e: React.MouseEvent) => {
-        setOpen(true)
-        ;(children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>).props.onClick?.(e)
-      },
+    const child = children as React.ReactElement<{
+      onClick?: React.MouseEventHandler<HTMLButtonElement>
+      [key: string]: unknown
+    }>
+    return React.cloneElement(child, {
+      ...props,
+      onClick: chainSheetChildClick(child.props.onClick, handleClick),
     })
   }
 
   return (
-    <button type="button" aria-haspopup="dialog" className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" {...props} onClick={composeSheetClickHandler(() => setOpen(true), onClick)}>
+    <button type="button" aria-haspopup="dialog" className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" {...props} onClick={handleClick}>
       {children}
     </button>
   )

@@ -75,13 +75,18 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
         ref?: React.Ref<HTMLButtonElement>
       }>
       const childProps: Record<string, unknown> = {
-        // Keep any ref the consumer placed on the child instead of replacing
-        // it with the trigger's own ref when cloning.
+        ...props,
         ref: (node: HTMLButtonElement | null) => {
           mergedRef(node)
           applyRef(child.props.ref, node)
         },
-        onClick: chainEventHandlers(child.props.onClick, () => setOpen(!open)),
+        onClick: composeTriggerClick(
+          (event) => {
+            child.props.onClick?.(event)
+            onClick?.(event)
+          },
+          () => setOpen(!open)
+        ),
       }
       return React.cloneElement(child, childProps)
     }
