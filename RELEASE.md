@@ -3,6 +3,7 @@
 ## Highlights
 
 - Verifies named PostgreSQL and ClickHouse Collector connections in CI.
+- Preserves grouped error-type labels in the Overview top-errors chart.
 - Keeps selected database connection state nonsecret and Collector-scoped.
 
 Lozana remains a private package. Release verification uses `bun install --frozen-lockfile`,

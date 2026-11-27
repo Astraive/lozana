@@ -158,10 +158,17 @@ export default function OverviewPage() {
     ? ((rejected / Math.max(1, totalEvents)) * 100).toFixed(1)
     : null;
 
-  const errorChartData = (errors.data?.rows ?? []).map((r) => ({
-    name: String(r.event_name || r.error_code || "unknown"),
-    count: Number(r.event_count || r.count || 0),
-  }));
+  const errorChartData = (errors.data?.rows ?? []).map((r) => {
+    // `error.type` is canonical; `error_type` supports older grouped LQL responses.
+    const nestedError = r.error && typeof r.error === "object"
+      ? (r.error as Record<string, unknown>).type
+      : undefined;
+    const errorType = r["error.type"] ?? nestedError ?? r.error_type;
+    return {
+      name: String(errorType || r.event_name || r.error_code || "unknown"),
+      count: Number(r.event_count ?? r.count ?? 0),
+    };
+  });
 
   const serviceChartData = (services.data?.rows ?? []).map((r) => ({
     name: String(r.service || "unknown"),
