@@ -215,22 +215,37 @@ describe("API Client & Scoped Routing", () => {
     ["collector", fetchJSON],
     ["cortex", fetchCortexJSON],
   ] as const)("keeps %s timeout active while reading the JSON body", async (_service, request) => {
+    const { promise: bodyStarted, resolve: announceBodyStarted } = Promise.withResolvers<void>();
     const { promise: body, reject: rejectBody } = Promise.withResolvers<unknown>();
     let requestSignal: AbortSignal | undefined;
+    let timeoutCallback: (() => void) | undefined;
     const timeout = vi.spyOn(globalThis, "setTimeout").mockImplementation(((callback: TimerHandler) => {
-      if (typeof callback === "function") queueMicrotask(() => callback());
+      if (typeof callback === "function") {
+        timeoutCallback = () => {
+          callback();
+        };
+      }
       return 1;
     }) as typeof setTimeout);
+    const clearTimeout = vi.spyOn(globalThis, "clearTimeout");
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
       requestSignal = init?.signal ?? undefined;
       requestSignal?.addEventListener("abort", () => rejectBody(new DOMException("Timed out", "AbortError")), { once: true });
       return {
         ok: true,
-        json: () => body,
+        json: () => {
+          announceBodyStarted();
+          return body;
+        },
       } as Response;
     });
 
-    await expect(request("/health")).rejects.toMatchObject({ name: "AbortError" });
+    const pending = request("/health");
+    await bodyStarted;
+    expect(clearTimeout).not.toHaveBeenCalled();
+    expect(timeoutCallback).toBeDefined();
+    timeoutCallback?.();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(timeout).toHaveBeenCalledWith(expect.any(Function), 30_000);
   });
 
