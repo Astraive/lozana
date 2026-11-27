@@ -6,6 +6,7 @@
 - Preserves grouped error-type labels in the Overview top-errors chart.
 - Keeps selected database connection state nonsecret and Collector-scoped.
 - Saves edited panels created from the dashboard page's Add Panel flow.
+- Keeps request cancellation active until Collector and Cortex JSON bodies finish parsing.
 
 Lozana remains a private package. Release verification uses `bun install --frozen-lockfile`,
 `bun run lint`, `bun run build`, and `bun run test`.
