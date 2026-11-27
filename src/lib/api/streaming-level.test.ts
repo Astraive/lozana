@@ -90,6 +90,24 @@ describe("live tail combined severity selection", () => {
     expect(single.searchParams.get("level")).toBe("warn");
   });
 
+  it("omits the combined severity from the NDJSON request URL", () => {
+    const requestUrls: string[] = [];
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      requestUrls.push(String(input));
+      return new Promise<Response>(() => {});
+    });
+
+    const client = new LiveStreamClient(10);
+    clients.push(client);
+    client.setFilters({ level: "error-fatal" });
+    client.connect();
+    expect(new URL(requestUrls[0]!).searchParams.has("level")).toBe(false);
+
+    client.setFilters({ level: "warn" });
+    client.reconnect();
+    expect(new URL(requestUrls[1]!).searchParams.get("level")).toBe("warn");
+  });
+
   it("keeps fatal events that arrive after selecting the combined level", () => {
     const { client, socket } = openStream("error-fatal");
     expect(new URL(socket.url).searchParams.has("level")).toBe(false);
