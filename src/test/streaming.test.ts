@@ -658,19 +658,16 @@ describe("Filter-change reconnect", () => {
     });
 
     const filterClient = new LiveStreamClient();
-    let applied: Parameters<typeof shouldReconnectForFilters>[0] = null;
     filterClient.connect(true);
 
     // Mirror LiveTailView's filter effect: the first application records the
     // baseline without reconnecting; a later change reopens the stream.
     const initial = { service: "checkout" };
     filterClient.setFilters(initial);
-    applied = initial;
 
     const next = { service: "billing", level: "error" };
     filterClient.setFilters(next);
-    if (shouldReconnectForFilters(applied, next)) filterClient.reconnect();
-    applied = next;
+    if (shouldReconnectForFilters(initial, next)) filterClient.reconnect();
 
     expect(FakeWebSocket.instances.length).toBe(2);
     expect(FakeWebSocket.instances[1].url).toContain("service=billing");

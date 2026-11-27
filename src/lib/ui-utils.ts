@@ -54,6 +54,7 @@ export function isCommandPaletteShortcut(
 
 /** Generic, non-sensitive message for the error boundary fallback. */
 export function getPublicErrorMessage(_error?: unknown): string {
+  void _error
   return "Something went wrong. Please try again."
 }
 
