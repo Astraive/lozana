@@ -17,6 +17,14 @@ export type StreamConnectionStatus =
   | "disconnected"
   | "error";
 
+/** A combined error/fatal selection is filtered locally because the collector
+ * accepts a single level in its URL, not a severity group. */
+export function matchesStreamLevel(filter: string | undefined, level: string): boolean {
+  if (!filter) return true;
+  if (filter === "error-fatal") return level === "error" || level === "fatal";
+  return level === filter;
+}
+
 export interface StreamFilterOptions {
   service?: string;
   kind?: string;
@@ -98,7 +106,7 @@ export function buildTailWebSocketUrl(
     url.searchParams.delete(name);
   }
   for (const [name, value] of Object.entries(filters)) {
-    if (name !== "searchRegex" && value) url.searchParams.set(name, value);
+    if (name !== "searchRegex" && !(name === "level" && value === "error-fatal") && value) url.searchParams.set(name, value);
   }
   if (environment && environment !== "all") {
     url.searchParams.set("environment", environment);
@@ -333,7 +341,7 @@ export class LiveStreamClient {
     const params = new URLSearchParams();
     if (this.filters.service) params.set("service", this.filters.service);
     if (this.filters.kind) params.set("kind", this.filters.kind);
-    if (this.filters.level) params.set("level", this.filters.level);
+    if (this.filters.level && this.filters.level !== "error-fatal") params.set("level", this.filters.level);
     if (this.filters.trace_id) params.set("trace_id", this.filters.trace_id);
     if (this.filters.incident_id) params.set("incident_id", this.filters.incident_id);
 
@@ -483,7 +491,7 @@ export class LiveStreamClient {
 
       if (this.filters.service && event.service !== this.filters.service) return;
       if (this.filters.kind && event.kind !== this.filters.kind) return;
-      if (this.filters.level && event.level !== this.filters.level) return;
+      if (!matchesStreamLevel(this.filters.level, event.level)) return;
       if (this.filters.trace_id && event.trace_id !== this.filters.trace_id) return;
       if (this.filters.incident_id && event.incident_id !== this.filters.incident_id) return;
       if (this.searchRegex && !testRegexSafely(this.searchRegex, JSON.stringify(event))) return;
