@@ -218,7 +218,7 @@ describe("API Client & Scoped Routing", () => {
     const { promise: body, reject: rejectBody } = Promise.withResolvers<unknown>();
     let requestSignal: AbortSignal | undefined;
     const timeout = vi.spyOn(globalThis, "setTimeout").mockImplementation(((callback: TimerHandler) => {
-      if (typeof callback === "function") queueMicrotask(callback);
+      if (typeof callback === "function") queueMicrotask(() => callback());
       return 1;
     }) as typeof setTimeout);
     vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
