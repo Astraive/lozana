@@ -13,7 +13,7 @@ import {
   isCredentialSafeTarget,
 } from "@/lib/api/client";
 import { isAuthenticated } from "@/lib/auth/auth.client";
-import { listDatabaseConnections, queryDatabase } from "@/lib/api/events";
+import { getTopErrors, getTopServices, listDatabaseConnections, queryDatabase } from "@/lib/api/events";
 import { queryClient, scopedQueryKey } from "@/lib/query-client";
 import {
   migratePersistedAppState,
@@ -131,6 +131,25 @@ describe("API Client & Scoped Routing", () => {
     expect(getHeaders.has("Content-Type")).toBe(false);
     expect(postHeaders.get("Content-Type")).toBe("application/json");
   });
+  it("emits canonical top-error grouping while preserving the top-services query", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ columns: [], rows: [] }),
+    } as Response);
+
+    await getTopErrors(8);
+    await getTopServices(8);
+
+    const errorQuery = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).query;
+    const serviceQuery = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).query;
+    expect(errorQuery).toBe(
+      'from events | where level = "error" or level = "fatal" | summarize event_count = count() by error.type | sort event_count desc | take 8',
+    );
+    expect(serviceQuery).toBe(
+      "from events | summarize event_count = count() by service | sort event_count desc | take 8",
+    );
+  });
+
 
   it("uses scoped database endpoints and never serializes credentials", async () => {
     useAppStore.setState({ activeCollector: "edge-us-east", activeDatabaseConnection: "analytics" });

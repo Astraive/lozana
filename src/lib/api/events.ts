@@ -161,7 +161,7 @@ export async function getTopServices(limit = 10): Promise<QueryResult> {
 export async function getTopErrors(limit = 10): Promise<QueryResult> {
   const normalized = normalizePositive(limit, 10, 100);
   return queryLqlEvents(
-    `from events | where level = "error" or level = "fatal" | summarize event_count = count() by error_type | sort event_count desc | take ${normalized}`,
+    `from events | where level = "error" or level = "fatal" | summarize event_count = count() by error.type | sort event_count desc | take ${normalized}`,
     {},
     normalized,
   );
