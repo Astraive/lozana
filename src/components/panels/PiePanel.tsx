@@ -1,3 +1,4 @@
+import { firstFiniteValue } from "@/lib/panel-math";
 import { PanelWrapper } from "./PanelWrapper";
 import { PieChart } from "@/components/charts/PieChart";
 import type { Panel } from "@/types/dashboard";
@@ -30,21 +31,28 @@ export function PiePanel({ panel, onEdit, onDelete, onDuplicate }: PiePanelProps
           );
         }
 
-        const chartData = rows.slice(0, 8).map((r) => {
+        const chartData = rows.flatMap((r) => {
           const keys = Object.keys(r);
+          const singleField = keys.length === 1 ? keys[0] : undefined;
           const nameKey =
             keys.find((k) => k === "service" || k === "level" || k === "kind" || k === "outcome" || k === "status_code") ||
             keys[0];
           const valKey =
             keys.find((k) => k !== nameKey && (k.includes("count") || k.includes("val"))) ||
-            keys[1] ||
-            keys[0];
+            keys.find((k) => k !== nameKey) ||
+            singleField;
+          const value = valKey ? firstFiniteValue(r, [valKey]) : undefined;
+          const name = singleField ? singleField : String(r[nameKey] ?? "Category");
+          return value === undefined ? [] : [{ name, value }];
+        }).slice(0, 8);
 
-          return {
-            name: String(r[nameKey] ?? "Category"),
-            value: Number(r[valKey] ?? 1),
-          };
-        });
+        if (chartData.length === 0) {
+          return (
+            <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+              No numeric data for distribution chart.
+            </div>
+          );
+        }
 
         return (
           <div className="flex-1 min-h-[160px] w-full">
