@@ -31,17 +31,20 @@ export function PiePanel({ panel, onEdit, onDelete, onDuplicate }: PiePanelProps
           );
         }
 
-        const chartData = rows.slice(0, 8).flatMap((r) => {
+        const chartData = rows.flatMap((r) => {
           const keys = Object.keys(r);
+          const singleField = keys.length === 1 ? keys[0] : undefined;
           const nameKey =
             keys.find((k) => k === "service" || k === "level" || k === "kind" || k === "outcome" || k === "status_code") ||
             keys[0];
           const valKey =
             keys.find((k) => k !== nameKey && (k.includes("count") || k.includes("val"))) ||
-            keys.find((k) => k !== nameKey);
+            keys.find((k) => k !== nameKey) ||
+            singleField;
           const value = valKey ? firstFiniteValue(r, [valKey]) : undefined;
-          return value === undefined ? [] : [{ name: String(r[nameKey] ?? "Category"), value }];
-        });
+          const name = singleField ? singleField : String(r[nameKey] ?? "Category");
+          return value === undefined ? [] : [{ name, value }];
+        }).slice(0, 8);
 
         if (chartData.length === 0) {
           return (

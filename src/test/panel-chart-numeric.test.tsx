@@ -41,4 +41,21 @@ describe("bar and pie numeric measures", () => {
     render(<BarPanel panel={panel("bar")} />);
     expect(state.chart?.data).toEqual([{ name: "api", value: 0 }]);
   });
+  it("keeps a valid bar row beyond the display limit after filtering invalid rows", () => {
+    state.rows = [...Array.from({ length: 15 }, (_, index) => ({ service: `invalid-${index}`, count: "missing" })), { service: "valid", count: 7 }];
+    render(<BarPanel panel={panel("bar")} />);
+    expect(state.chart?.data).toEqual([{ name: "valid", value: 7 }]);
+  });
+
+  it("keeps a valid pie row beyond the display limit after filtering invalid rows", () => {
+    state.rows = [...Array.from({ length: 8 }, (_, index) => ({ service: `invalid-${index}`, count: "missing" })), { service: "valid", count: 9 }];
+    render(<PiePanel panel={panel("pie")} />);
+    expect(state.chart?.data).toEqual([{ name: "valid", value: 9 }]);
+  });
+
+  it("uses a single numeric pie field as its measure", () => {
+    state.rows = [{ total: 12 }];
+    render(<PiePanel panel={panel("pie")} />);
+    expect(state.chart?.data).toEqual([{ name: "total", value: 12 }]);
+  });
 });
