@@ -56,8 +56,6 @@ const openStream = (level?: string) => {
 beforeEach(() => {
   FixtureSocket.sockets = [];
   vi.stubGlobal("WebSocket", FixtureSocket);
-  vi.spyOn(window, "setInterval").mockImplementation(() => 1 as unknown as number);
-  vi.spyOn(window, "clearInterval").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
